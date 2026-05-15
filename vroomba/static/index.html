@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vroomba</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Header -->
+    <header id="header">
+      <span class="logo">▸ VROOMBA</span>
+      <span class="mode-badge" id="mode-badge">IDLE</span>
+    </header>
+
+    <div id="columns">
+      <!-- Main column -->
+      <main id="main-col">
+        <div id="messages" class="panel">
+          <div class="panel-header">/// COMMS</div>
+          <div id="message-list" class="scroll-area"></div>
+        </div>
+        <form id="input-form">
+          <span class="prompt-char">▸</span>
+          <input type="text" id="input-box" placeholder="Enter directive…" autocomplete="off" autofocus>
+        </form>
+      </main>
+
+      <!-- Sidebar -->
+      <aside id="sidebar">
+        <!-- Status panel -->
+        <div class="panel" id="status-panel">
+          <div class="panel-header">/// STATUS</div>
+          <div class="status-grid">
+            <div class="status-row">
+              <span class="status-dot" id="dot-arduino"></span>
+              <span>Arduino</span>
+            </div>
+            <div class="status-row">
+              <span class="status-dot" id="dot-llm"></span>
+              <span>LLM</span>
+            </div>
+            <div class="status-row">
+              <span class="label">Mode</span>
+              <span id="status-mode" class="value">IDLE</span>
+            </div>
+            <div class="status-row">
+              <span class="label">Autopilot</span>
+              <div id="pilot-picker" class="pilot-picker">
+                <button id="pilot-picker-btn" class="pilot-picker-btn">—</button>
+                <div id="pilot-picker-menu" class="pilot-picker-menu hidden"></div>
+              </div>
+            </div>
+            <div class="status-row">
+              <span class="label">Control</span>
+              <span id="status-control" class="value arrow-display">·</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Kill switch -->
+        <button id="kill-btn" title="Emergency stop (Esc)">⏹ KILL</button>
+
+        <!-- Directive panel -->
+        <div class="panel" id="directive-panel">
+          <div class="panel-header">/// DIRECTIVE</div>
+          <div id="directive-body" class="directive-body">
+            <span class="text-dim">No active directive</span>
+          </div>
+        </div>
+
+        <!-- Turns panel -->
+        <div class="panel" id="turns-panel">
+          <div class="panel-header">/// TURNS</div>
+          <div id="turn-list" class="scroll-area"></div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- Debug modal -->
+  <div id="debug-modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="panel-header">/// DEBUG <button id="debug-close" class="close-btn">✕</button></div>
+      <pre id="debug-body" class="scroll-area"></pre>
+    </div>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
