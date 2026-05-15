@@ -22,6 +22,8 @@
   const pilotPickerBtn = document.getElementById("pilot-picker-btn");
   const pilotPickerMenu= document.getElementById("pilot-picker-menu");
   const directiveBody  = document.getElementById("directive-body");
+  const micBtn         = document.getElementById("mic-btn");
+  const ttsBtn         = document.getElementById("tts-btn");
 
   // ---- state ----
   let currentMode = "idle";  // idle | auto | manual
@@ -61,6 +63,69 @@
     const s = ctrl.steering || "idle";
     return ARROW_MAP[t + "/" + s] || "·";
   }
+
+  // ---- TTS ----
+
+  let ttsEnabled = true;
+
+  function speakText(text) {
+    if (!ttsEnabled || !window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    const utt = new SpeechSynthesisUtterance(text);
+    // Prefer the first high-quality voice available; fall back to default.
+    const voices = window.speechSynthesis.getVoices();
+    const preferred = voices.find(v =>
+      /samantha|zoe|neural|enhanced/i.test(v.name) && /en/i.test(v.lang)
+    ) || voices.find(v => /en/i.test(v.lang) && v.localService);
+    if (preferred) utt.voice = preferred;
+    utt.rate = 1.05;
+    window.speechSynthesis.speak(utt);
+  }
+
+  // Voices load asynchronously on some browsers; just re-request on change.
+  if (window.speechSynthesis) {
+    window.speechSynthesis.onvoiceschanged = () => {};
+  } else {
+    ttsBtn.classList.add("hidden");
+  }
+
+  ttsBtn.addEventListener("click", () => {
+    ttsEnabled = !ttsEnabled;
+    ttsBtn.classList.toggle("tts-on", ttsEnabled);
+    if (!ttsEnabled) window.speechSynthesis && window.speechSynthesis.cancel();
+  });
+
+  // ---- STT ----
+
+  let recognition = null;
+
+  (function initSTT() {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { micBtn.classList.add("hidden"); return; }
+
+    recognition = new SR();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = "en-US";
+
+    recognition.onresult = (e) => {
+      inputBox.value = e.results[0][0].transcript;
+      micBtn.classList.remove("listening");
+      sendMessage();
+    };
+    recognition.onerror = () => micBtn.classList.remove("listening");
+    recognition.onend   = () => micBtn.classList.remove("listening");
+  })();
+
+  micBtn.addEventListener("click", () => {
+    if (!recognition) return;
+    if (micBtn.classList.contains("listening")) {
+      recognition.stop();
+    } else {
+      micBtn.classList.add("listening");
+      recognition.start();
+    }
+  });
 
   // ---- WebSocket ----
 
@@ -121,6 +186,7 @@
 
   function addMessage(role, content) {
     clearSpinner();
+    if (role === "assistant") speakText(content);
     const labels = { user: "YOU", assistant: pilotName, system: "SYSTEM" };
     const div = document.createElement("div");
     div.className = `msg msg-${role}`;
@@ -217,8 +283,7 @@
 
   // ---- input form ----
 
-  inputForm.addEventListener("submit", async (e) => {
-    e.preventDefault();
+  async function sendMessage() {
     const text = inputBox.value.trim();
     if (!text) return;
     inputBox.value = "";
@@ -238,6 +303,11 @@
         body: JSON.stringify({ message: text }),
       });
     }
+  }
+
+  inputForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    await sendMessage();
   });
 
   // ---- keyboard ----
