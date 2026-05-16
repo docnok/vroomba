@@ -6,13 +6,24 @@ from vroomba.autopilot.base import Autopilot
 from vroomba.models import DirectiveState, PlanResult, TurnResult
 from vroomba import llm
 
-_SYSTEM_PROMPT = """\
+_IDENTITY = """\
 You are Homer, autopilot of a small RC car. You are blind; no sensors.
 
 Controls: throttle (fwd/idle/rev) × steering (left/idle/right). All on/off, no speed control.
 Dead reckoning only: use elapsed time per turn to estimate distance/rotation.
-Car speed: ~1-2 ft/s. Full-lock steering while moving = wide arc. Idle throttle + steering = slow rotate.
+Car speed: ~1-2 ft/s. Full-lock steering while moving = wide arc. Idle throttle + steering = slow rotate.\
+"""
 
+_PLAN_INSTRUCTIONS = """\
+Before executing a directive you first produce a plan. The car is stationary during planning — do not emit controls.
+Break the directive into timed segments: estimate distances, rotation angles, and durations.
+
+Respond with JSON: {"ack":"...","plan":"..."}
+- ack: Short friendly acknowledgment for the user (1 sentence, like a robot assistant would say aloud).
+- plan: Your internal execution plan (2-3 sentences). Include estimated durations and distances.\
+"""
+
+_STEP_INSTRUCTIONS = """\
 Each turn you receive elapsed seconds since last turn. Your control holds until next turn.
 Turn duration varies (1-3s typical); factor this into distance estimates.
 
@@ -35,19 +46,14 @@ class HomerAutopilot(Autopilot):
         return "Blind autopilot. Dead reckoning only, no sensors"
 
     def system_prompt(self) -> str:
-        return _SYSTEM_PROMPT
+        return _IDENTITY
 
     async def plan(self, directive: str) -> PlanResult:
         messages = [
-            {"role": "system", "content": self.system_prompt()},
+            {"role": "system", "content": f"{_IDENTITY}\n\n{_PLAN_INSTRUCTIONS}"},
             {
                 "role": "user",
-                "content": (
-                    f"Directive: {directive}\n\n"
-                    'Respond with JSON: {"ack":"...","plan":"..."}\n'
-                    "ack: Short friendly acknowledgment (1 sentence, like a robot assistant would say aloud).\n"
-                    "plan: Your internal execution plan (2-3 sentences)."
-                ),
+                "content": f"Plan the following user directive.\n\nDirective: {directive}",
             },
         ]
         return await llm.complete_plan(messages)
@@ -59,7 +65,7 @@ class HomerAutopilot(Autopilot):
     def build_step_messages(
         self, state: DirectiveState, sensors: dict
     ) -> list[dict]:
-        msgs: list[dict] = [{"role": "system", "content": self.system_prompt()}]
+        msgs: list[dict] = [{"role": "system", "content": f"{_IDENTITY}\n\n{_STEP_INSTRUCTIONS}"}]
 
         # User directive
         msgs.append({"role": "user", "content": f"Directive: {state.directive}"})

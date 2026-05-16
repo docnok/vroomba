@@ -6,7 +6,6 @@ import json
 import logging
 
 from openai import AsyncOpenAI
-from pydantic import ValidationError
 
 from vroomba.config import settings
 from vroomba.models import PlanResult, TurnResult
@@ -40,45 +39,24 @@ async def is_available() -> bool:
     except Exception:
         return False
 
-#TODO: better error handling?
-async def complete(messages: list[dict], retries: int = 1) -> TurnResult:
-    """Send chat completion, parse structured TurnResult JSON.
 
-    On parse failure, retries once with a correction prompt.
-    """
+async def complete(messages: list[dict]) -> TurnResult:
+    """Send chat completion, parse structured TurnResult JSON."""
     client = get_client()
-
-    for attempt in range(1 + retries):
-        response = await client.chat.completions.create(
-            model=settings.llm_model,
-            messages=messages,
-            response_format={"type": "json_schema", "json_schema": TurnResult.model_json_schema()},
-            extra_body={"reasoning_effort": "none"},
-            max_tokens=settings.llm_max_tokens,
-        )
-        raw = response.choices[0].message.content or ""
-        try:
-            data = json.loads(raw)
-            return TurnResult.model_validate(data)
-        except (json.JSONDecodeError, ValidationError) as exc:
-            log.warning("LLM output parse error (attempt %d): %s", attempt + 1, exc)
-            if attempt < retries:
-                messages = messages + [
-                    {"role": "assistant", "content": raw},
-                    {
-                        "role": "user",
-                        "content": (
-                            "Your previous output was not valid JSON matching the "
-                            "required schema. Please try again, outputting ONLY the "
-                            "JSON object with the correct fields."
-                        ),
-                    },
-                ]
-    raise ValueError(f"LLM failed to produce valid TurnResult after {1 + retries} attempts")
+    response = await client.chat.completions.create(
+        model=settings.llm_model,
+        messages=messages,
+        response_format={"type": "json_schema", "json_schema": {"name": "TurnResult", "schema": TurnResult.model_json_schema()}},
+        extra_body={"reasoning_effort": "none"},
+        max_tokens=settings.llm_max_tokens,
+    )
+    raw = response.choices[0].message.content or ""
+    data = json.loads(raw)
+    return TurnResult.model_validate(data)
 
 
 async def chat(messages: list[dict]) -> str:
-    """Simple chat completion returning raw text (used for planning)."""
+    """Simple chat completion returning raw text."""
     client = get_client()
     response = await client.chat.completions.create(
         model=settings.llm_model,
@@ -95,7 +73,7 @@ async def complete_plan(messages: list[dict]) -> PlanResult:
     response = await client.chat.completions.create(
         model=settings.llm_model,
         messages=messages,
-        response_format={"type": "json_schema", "json_schema": PlanResult.model_json_schema()},
+        response_format={"type": "json_schema", "json_schema": {"name": "PlanResult", "schema": PlanResult.model_json_schema()}},
         extra_body={"reasoning_effort": "none"},
         max_tokens=settings.llm_max_tokens,
     )

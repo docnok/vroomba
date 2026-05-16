@@ -12,7 +12,7 @@ class Settings(BaseSettings):
 
     # LLM
     llm_base_url: str = "http://localhost:11434/v1"
-    llm_model: str = "gemma4:e4b"
+    llm_model: str = "gemma4:26b"
     llm_api_key: str = "ollama"
     llm_max_tokens: int = 256
 

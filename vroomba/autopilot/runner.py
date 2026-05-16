@@ -150,20 +150,9 @@ class AutopilotRunner:
                     self.autopilot.step(self.state, {}),
                     timeout=settings.turn_timeout_seconds,
                 )
-            except asyncio.TimeoutError:
-                log.warning("Turn %d: LLM timeout (%.1fs)", turn_num, settings.turn_timeout_seconds)
-                self.car.idle()
-                self.current_control = ControlCommand()
-                await self._emit("control", self.current_control.model_dump())
-                await self._emit(
-                    "message",
-                    {"role": "system", "content": f"⚠ Turn {turn_num}: LLM timeout — idled, retrying"},
-                )
-                continue
-            except asyncio.CancelledError:
-                raise
             except Exception as exc:
-                log.exception("Turn %d: autopilot error", turn_num)
+                err_label = "LLM timeout" if isinstance(exc, asyncio.TimeoutError) else type(exc).__name__
+                log.warning("Turn %d: %s", turn_num, err_label, exc_info=not isinstance(exc, asyncio.TimeoutError))
                 self.car.idle()
                 self.current_control = ControlCommand()
                 await self._emit("control", self.current_control.model_dump())
@@ -199,8 +188,9 @@ class AutopilotRunner:
             await self._emit("turn", turn_data)
             await self._emit("control", result.control.model_dump())
 
-            # Optional user message from LLM
-            if result.msg:
+            # Optional user message from LLM (non-terminal turns only;
+            # terminal turns handle messaging below)
+            if result.msg and not result.done and not result.yield_to_user:
                 self.state.messages.append(
                     Message(role="assistant", content=result.msg)
                 )
@@ -209,21 +199,20 @@ class AutopilotRunner:
                     {"role": "assistant", "content": result.msg},
                 )
 
-            # Check yield / complete
+            # Check yield / complete — always emit a message for terminal states
             if result.done:
                 log.info("Directive complete at turn %d", turn_num)
                 self.car.idle()
                 self.current_control = ControlCommand()
                 self.state.active = False
                 self.mode = Mode.idle
-                completion_msg = result.msg or "Directive complete."
-                if not result.msg:
-                    self.state.messages.append(
-                        Message(role="assistant", content=completion_msg)
-                    )
-                    await self._emit(
-                        "message", {"role": "assistant", "content": completion_msg}
-                    )
+                completion_msg = result.msg or result.summary
+                self.state.messages.append(
+                    Message(role="assistant", content=completion_msg)
+                )
+                await self._emit(
+                    "message", {"role": "assistant", "content": completion_msg}
+                )
                 await self._emit("control", self.current_control.model_dump())
                 await self._emit("status", {"mode": self.mode.value})
                 break
@@ -234,6 +223,13 @@ class AutopilotRunner:
                 self.current_control = ControlCommand()
                 self.state.active = False
                 self.mode = Mode.idle
+                yield_msg = result.msg or result.summary
+                self.state.messages.append(
+                    Message(role="assistant", content=yield_msg)
+                )
+                await self._emit(
+                    "message", {"role": "assistant", "content": yield_msg}
+                )
                 await self._emit("control", self.current_control.model_dump())
                 await self._emit("status", {"mode": self.mode.value})
                 break
