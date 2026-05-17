@@ -50,6 +50,10 @@ async def lifespan(app: FastAPI):
     runner = AutopilotRunner(car)
     runner.add_listener(broadcast)
 
+    # Default autopilot
+    pilot = get_autopilot("homer")
+    runner.set_autopilot(pilot)
+
     # Try to connect to Arduino (non-fatal if not plugged in)
     connected = car.connect()
     if connected:
@@ -59,7 +63,7 @@ async def lifespan(app: FastAPI):
 
     yield
 
-    await runner.kill()
+    await runner.pause()
     car.disconnect()
 
 
@@ -68,36 +72,34 @@ app = FastAPI(title="Vroomba", lifespan=lifespan)
 
 # -- request models -----------------------------------------------------------
 
-class DirectiveRequest(BaseModel):
+class MessageRequest(BaseModel):
     text: str
-    autopilot: str = "homer"
-
-
-class ResumeRequest(BaseModel):
-    message: str | None = None
 
 
 # -- REST endpoints -----------------------------------------------------------
 
-@app.post("/directive")
-async def start_directive(req: DirectiveRequest):
-    if runner.mode == Mode.auto:
-        return {"error": "A directive is already active. Kill it first."}
-    pilot = get_autopilot(req.autopilot)
-    asyncio.create_task(runner.start_directive(req.text, pilot))
-    return {"status": "started", "autopilot": pilot.name}
+@app.post("/message")
+async def send_message(req: MessageRequest):
+    asyncio.create_task(runner.send_message(req.text))
+    return {"status": "ok"}
 
 
-@app.post("/kill")
-async def kill():
-    await runner.kill()
-    return {"status": "killed"}
+@app.post("/pause")
+async def pause():
+    await runner.pause()
+    return {"status": "paused"}
 
 
 @app.post("/resume")
-async def resume(req: ResumeRequest):
-    await runner.resume(req.message)
+async def resume():
+    await runner.resume()
     return {"status": "resumed"}
+
+
+@app.post("/reset")
+async def reset():
+    await runner.reset()
+    return {"status": "reset"}
 
 
 @app.post("/manual")
@@ -116,15 +118,11 @@ async def get_status():
         "mode": runner.mode.value,
         "autopilot_name": runner.autopilot.name if runner.autopilot else None,
         "current_control": runner.current_control.model_dump(),
-        "directive": runner.state.directive if runner.state else None,
-        "plan": runner.state.plan if runner.state else None,
     }
 
 
 @app.get("/state")
 async def get_state():
-    if runner.state is None:
-        return {"state": None}
     return {"state": runner.state.model_dump(mode="json")}
 
 
@@ -147,13 +145,11 @@ async def websocket_endpoint(ws: WebSocket):
     log.info("WebSocket client connected (%d total)", len(ws_clients))
     try:
         while True:
-            # Keep connection alive; client can send pings or commands
             data = await ws.receive_text()
-            # Handle client-sent commands over WS (optional, REST is primary)
             try:
                 msg = json.loads(data)
-                if msg.get("type") == "kill":
-                    await runner.kill()
+                if msg.get("type") == "pause":
+                    await runner.pause()
                 elif msg.get("type") == "manual":
                     cmd = ControlCommand.model_validate(msg.get("data", {}))
                     await runner.manual_control(cmd)

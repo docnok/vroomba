@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
-from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -64,44 +63,15 @@ class TurnResult(BaseModel):
     summary: str = Field(description="Brief reasoning for this turn")
     msg: str | None = Field(
         default=None,
-        description="Message to display to the user (usually null; always set if yield_to_user or done is true)",
+        description="Optional message to display to the user",
     )
-    yield_to_user: bool = False
     done: bool = False
 
 
-class PlanResult(BaseModel):
-    """Structured output from the planning phase."""
+class SessionState(BaseModel):
+    """Session state: just a message list (same format the LLM consumes)."""
 
-    ack: str = Field(description="Short spoken acknowledgment for the user (1 sentence)")
-    plan: str = Field(description="Internal plan for executing the directive")
-
-
-class TurnRecord(BaseModel):
-    """Persisted record of one autopilot turn."""
-
-    turn_number: int
-    timestamp: datetime
-    elapsed_seconds: float = Field(description="Seconds since previous turn")
-    control: ControlCommand
-    summary: str
-
-
-class Message(BaseModel):
-    """A message in the conversation history."""
-
-    role: Literal["user", "assistant", "system"]
-    content: str
-    timestamp: datetime = Field(default_factory=datetime.now)
-
-
-class DirectiveState(BaseModel):
-    """Full state for one directive session."""
-
-    directive: str
-    plan: str = ""
-    messages: list[Message] = Field(default_factory=list)
-    turns: list[TurnRecord] = Field(default_factory=list)
+    messages: list[dict] = Field(default_factory=list)
     active: bool = True
 
 
@@ -109,13 +79,3 @@ class Mode(str, Enum):
     idle = "idle"
     auto = "auto"
     manual = "manual"
-
-
-class SystemStatus(BaseModel):
-    """Current system status for the UI."""
-
-    arduino_connected: bool = False
-    llm_available: bool = False
-    mode: Mode = Mode.idle
-    autopilot_name: str | None = None
-    current_control: ControlCommand = Field(default_factory=ControlCommand)

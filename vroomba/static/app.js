@@ -14,23 +14,20 @@
   const dotLlm         = document.getElementById("dot-llm");
   const statusMode     = document.getElementById("status-mode");
   const statusControl  = document.getElementById("status-control");
-  const killBtn        = document.getElementById("kill-btn");
+  const pauseBtn       = document.getElementById("pause-btn");
+  const resetBtn       = document.getElementById("reset-btn");
   const turnList       = document.getElementById("turn-list");
   const debugModal     = document.getElementById("debug-modal");
   const debugBody      = document.getElementById("debug-body");
   const debugClose     = document.getElementById("debug-close");
   const pilotPickerBtn = document.getElementById("pilot-picker-btn");
   const pilotPickerMenu= document.getElementById("pilot-picker-menu");
-  const directiveBody  = document.getElementById("directive-body");
   const micBtn         = document.getElementById("mic-btn");
   const ttsBtn         = document.getElementById("tts-btn");
 
   // ---- state ----
   let currentMode = "idle";  // idle | auto | manual
-  let hasActiveDirective = false;
   let pilotName = "VROOMBA";
-  let selectedPilot = "homer";
-  let pilotList = [];
   let ws = null;
   let wsReconnectTimer = null;
   let spinnerEl = null;
@@ -72,7 +69,6 @@
     if (!ttsEnabled || !window.speechSynthesis) return;
     window.speechSynthesis.cancel();
     const utt = new SpeechSynthesisUtterance(text);
-    // Prefer the first high-quality voice available; fall back to default.
     const voices = window.speechSynthesis.getVoices();
     const preferred = voices.find(v =>
       /samantha|zoe|neural|enhanced/i.test(v.name) && /en/i.test(v.lang)
@@ -82,7 +78,6 @@
     window.speechSynthesis.speak(utt);
   }
 
-  // Voices load asynchronously on some browsers; just re-request on change.
   if (window.speechSynthesis) {
     window.speechSynthesis.onvoiceschanged = () => {};
   } else {
@@ -170,11 +165,8 @@
         }
         if (data.mode !== "auto") clearSpinner();
         break;
-      case "directive_start":
-        clearMessages();
-        break;
-      case "directive_info":
-        updateDirective(data.directive, data.plan);
+      case "reset":
+        clearAll();
         break;
       case "thinking":
         showSpinner();
@@ -197,14 +189,8 @@
     messageList.scrollTop = messageList.scrollHeight;
   }
 
-  function clearMessages() {
-    // Insert a divider if there's existing content
-    if (messageList.children.length > 0) {
-      const hr = document.createElement("div");
-      hr.className = "directive-divider";
-      hr.innerHTML = `<span>NEW DIRECTIVE</span>`;
-      messageList.appendChild(hr);
-    }
+  function clearAll() {
+    messageList.innerHTML = "";
     turnList.innerHTML = "";
   }
 
@@ -245,8 +231,7 @@
     statusMode.textContent = mode.toUpperCase();
     modeBadge.textContent = mode.toUpperCase();
     modeBadge.className = "mode-badge " + mode;
-    hasActiveDirective = mode === "auto";
-    killBtn.classList.toggle("active-pulse", mode === "auto");
+    pauseBtn.classList.toggle("active-pulse", mode === "auto");
   }
 
   // ---- status fetch ----
@@ -263,7 +248,6 @@
         pilotName = s.autopilot_name.toUpperCase();
       }
       updateControl(s.current_control);
-      if (s.directive) updateDirective(s.directive, s.plan);
     } catch (e) {
       console.error("Status fetch failed", e);
     }
@@ -288,21 +272,11 @@
     if (!text) return;
     inputBox.value = "";
 
-    if (currentMode === "idle" && !hasActiveDirective) {
-      // New directive
-      await fetch("/directive", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, autopilot: selectedPilot }),
-      });
-    } else {
-      // Resume with message
-      await fetch("/resume", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text }),
-      });
-    }
+    await fetch("/message", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
   }
 
   inputForm.addEventListener("submit", async (e) => {
@@ -318,7 +292,7 @@
 
     if (e.key === "Escape") {
       e.preventDefault();
-      fetch("/kill", { method: "POST" });
+      fetch("/pause", { method: "POST" });
       return;
     }
 
@@ -383,28 +357,21 @@
   async function loadAutopilots() {
     try {
       const res = await fetch("/autopilots");
-      pilotList = await res.json();
-      buildPilotMenu();
+      const pilotList = await res.json();
+      buildPilotMenu(pilotList);
     } catch (e) {
       console.error("Failed to load autopilots", e);
     }
   }
 
-  function buildPilotMenu() {
+  function buildPilotMenu(pilotList) {
     pilotPickerMenu.innerHTML = "";
     for (const p of pilotList) {
       const item = document.createElement("div");
-      item.className = "pilot-option" + (p.name.toLowerCase() === selectedPilot ? " selected" : "");
+      item.className = "pilot-option";
       item.innerHTML =
         `<div class="pilot-option-name">${escapeHtml(p.name)}</div>` +
         `<div class="pilot-option-desc">${escapeHtml(p.description)}</div>`;
-      item.addEventListener("click", (e) => {
-        e.stopPropagation();
-        selectedPilot = p.name.toLowerCase();
-        pilotPickerBtn.textContent = p.name;
-        pilotPickerMenu.classList.add("hidden");
-        buildPilotMenu(); // refresh selection state
-      });
       pilotPickerMenu.appendChild(item);
     }
   }
@@ -418,27 +385,20 @@
     pilotPickerMenu.classList.add("hidden");
   });
 
-  // ---- directive display ----
+  // ---- pause / reset buttons ----
 
-  function updateDirective(directive, plan) {
-    let html = `<div class="directive-text">${escapeHtml(directive)}</div>`;
-    if (plan) {
-      html += `<div class="directive-plan">${escapeHtml(plan)}</div>`;
-    }
-    directiveBody.innerHTML = html;
-  }
+  pauseBtn.addEventListener("click", () => {
+    fetch("/pause", { method: "POST" });
+  });
 
-  // ---- kill button ----
-
-  killBtn.addEventListener("click", () => {
-    fetch("/kill", { method: "POST" });
+  resetBtn.addEventListener("click", () => {
+    fetch("/reset", { method: "POST" });
   });
 
   // ---- init ----
 
   connectWS();
   loadAutopilots();
-  // Poll status periodically
   setInterval(fetchStatus, 5000);
 
 })();

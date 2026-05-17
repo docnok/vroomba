@@ -273,9 +273,16 @@ body::after {
   text-shadow: var(--glow);
 }
 
-/* ---- kill button ---- */
+/* ---- pause / reset buttons ---- */
 
-#kill-btn {
+.btn-row {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.btn-row button {
+  flex: 1;
   background: transparent;
   border: 2px solid var(--red);
   color: var(--red);
@@ -286,16 +293,25 @@ body::after {
   cursor: pointer;
   letter-spacing: 2px;
   transition: all 0.15s;
-  flex-shrink: 0;
 }
 
-#kill-btn:hover {
+.btn-row button:hover {
   background: var(--red);
   color: var(--bg);
 }
 
-#kill-btn:active {
+.btn-row button:active {
   transform: scale(0.97);
+}
+
+#reset-btn {
+  border-color: var(--text-dim);
+  color: var(--text-dim);
+}
+
+#reset-btn:hover {
+  background: var(--text-dim);
+  color: var(--bg);
 }
 
 @keyframes pulse-border {
@@ -303,7 +319,7 @@ body::after {
   50% { border-color: transparent; }
 }
 
-#kill-btn.active-pulse {
+#pause-btn.active-pulse {
   animation: pulse-border 1s infinite;
 }
 
@@ -316,25 +332,6 @@ body::after {
 .spinner-text {
   color: var(--text-dim) !important;
   font-style: italic;
-}
-
-/* ---- directive divider ---- */
-
-.directive-divider {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 12px 0;
-  color: var(--green-dim);
-  font-size: 10px;
-  letter-spacing: 2px;
-}
-
-.directive-divider::before,
-.directive-divider::after {
-  content: '';
-  flex: 1;
-  border-top: 1px solid var(--border);
 }
 
 /* ---- autopilot picker ---- */
@@ -399,32 +396,6 @@ body::after {
   color: var(--text-dim);
   font-size: 10px;
   margin-top: 1px;
-}
-
-/* ---- directive panel ---- */
-
-#directive-panel {
-  flex-shrink: 0;
-}
-
-.directive-body {
-  padding: 6px 8px;
-  font-size: 11px;
-}
-
-.directive-text {
-  color: var(--amber);
-  margin-bottom: 4px;
-}
-
-.directive-plan {
-  color: var(--text-dim);
-  font-size: 10px;
-  font-style: italic;
-}
-
-.text-dim {
-  color: var(--text-dim);
 }
 
 /* ---- turns ---- */

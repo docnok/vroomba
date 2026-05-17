@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from vroomba.models import DirectiveState, PlanResult, TurnResult
+from vroomba.models import SessionState, TurnResult
 
 
 class Autopilot(ABC):
@@ -20,22 +20,15 @@ class Autopilot(ABC):
 
     @abstractmethod
     def system_prompt(self) -> str:
-        """Return the LLM system prompt for this autopilot."""
+        """Return the LLM identity/world-model system prompt."""
         ...
 
     @abstractmethod
-    async def plan(self, directive: str) -> PlanResult:
-        """Given a user directive, produce ack + internal plan."""
+    async def step(self, state: SessionState, elapsed: float) -> TurnResult:
+        """Execute one autopilot turn: read session state, return controls."""
         ...
 
     @abstractmethod
-    async def step(self, state: DirectiveState, sensors: dict) -> TurnResult:
-        """Execute one autopilot turn: read state + sensors, return controls."""
-        ...
-
-    @abstractmethod
-    def build_step_messages(
-        self, state: DirectiveState, sensors: dict
-    ) -> list[dict]:
+    def build_step_messages(self, state: SessionState, elapsed: float) -> list[dict]:
         """Assemble the LLM message list for a step() call."""
         ...

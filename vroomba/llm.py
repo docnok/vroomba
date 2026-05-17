@@ -8,7 +8,7 @@ import logging
 from openai import AsyncOpenAI
 
 from vroomba.config import settings
-from vroomba.models import PlanResult, TurnResult
+from vroomba.models import TurnResult
 
 log = logging.getLogger(__name__)
 
@@ -67,16 +67,4 @@ async def chat(messages: list[dict]) -> str:
     return response.choices[0].message.content or ""
 
 
-async def complete_plan(messages: list[dict]) -> PlanResult:
-    """Chat completion parsed as PlanResult JSON."""
-    client = get_client()
-    response = await client.chat.completions.create(
-        model=settings.llm_model,
-        messages=messages,
-        response_format={"type": "json_schema", "json_schema": {"name": "PlanResult", "schema": PlanResult.model_json_schema()}},
-        extra_body={"reasoning_effort": "none"},
-        max_tokens=settings.llm_max_tokens,
-    )
-    raw = response.choices[0].message.content or ""
-    data = json.loads(raw)
-    return PlanResult.model_validate(data)
+

@@ -23,7 +23,7 @@
         </div>
         <form id="input-form">
           <span class="prompt-char">▸</span>
-          <input type="text" id="input-box" placeholder="Enter directive…" autocomplete="off" autofocus>
+          <input type="text" id="input-box" placeholder="Send a message…" autocomplete="off" autofocus>
           <button type="button" id="mic-btn"  class="input-btn" title="Voice input (click to speak)">MIC</button>
           <button type="button" id="tts-btn"  class="input-btn tts-on" title="Toggle voice output">SPK</button>
         </form>
@@ -61,15 +61,10 @@
           </div>
         </div>
 
-        <!-- Kill switch -->
-        <button id="kill-btn" title="Emergency stop (Esc)">⏹ KILL</button>
-
-        <!-- Directive panel -->
-        <div class="panel" id="directive-panel">
-          <div class="panel-header">/// DIRECTIVE</div>
-          <div id="directive-body" class="directive-body">
-            <span class="text-dim">No active directive</span>
-          </div>
+        <!-- Pause / Reset -->
+        <div class="btn-row">
+          <button id="pause-btn" title="Pause autopilot (Esc)">⏸ PAUSE</button>
+          <button id="reset-btn" title="Reset session">↺ RESET</button>
         </div>
 
         <!-- Turns panel -->

@@ -3,19 +3,17 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import time
-from datetime import datetime
 
 from vroomba.autopilot.base import Autopilot
 from vroomba.car import CarInterface
 from vroomba.config import settings
 from vroomba.models import (
     ControlCommand,
-    DirectiveState,
-    Message,
     Mode,
-    TurnRecord,
+    SessionState,
     TurnResult,
 )
 
@@ -23,12 +21,12 @@ log = logging.getLogger(__name__)
 
 
 class AutopilotRunner:
-    """Manages the directive lifecycle and turn loop."""
+    """Manages the session lifecycle and turn loop."""
 
     def __init__(self, car: CarInterface):
         self.car = car
         self.autopilot: Autopilot | None = None
-        self.state: DirectiveState | None = None
+        self.state = SessionState()
         self.mode: Mode = Mode.idle
         self.current_control = ControlCommand()
 
@@ -48,47 +46,70 @@ class AutopilotRunner:
             except Exception:
                 log.exception("Listener error")
 
-    # -- directive lifecycle ---------------------------------------------------
+    # -- session lifecycle -----------------------------------------------------
 
-    async def start_directive(self, directive: str, autopilot: Autopilot) -> None:
-        """Begin a new directive session."""
-        # Cancel any existing run
-        await self.kill()
-
+    def set_autopilot(self, autopilot: Autopilot) -> None:
         self.autopilot = autopilot
-        self.state = DirectiveState(directive=directive)
+
+    async def send_message(self, text: str) -> None:
+        """Append a user message to the session. Starts the loop if not running."""
+        if self.autopilot is None:
+            return
+
+        self.state.messages.append({"role": "user", "content": text})
+        await self._emit("message", {"role": "user", "content": text})
+
+        # If already running, the loop will see the message on the next turn
+        if self.mode == Mode.auto and self._task and not self._task.done():
+            return
+
+        # Otherwise start/restart the loop
+        await self._start_loop()
+
+    async def resume(self) -> None:
+        """Resume the turn loop without adding a message."""
+        if self.autopilot is None:
+            return
+        if self.mode == Mode.auto and self._task and not self._task.done():
+            return  # already running
+        await self._start_loop()
+
+    async def pause(self) -> None:
+        """Stop the turn loop and idle the car. Session state is preserved."""
+        await self._stop_loop()
+        self.car.idle()
+        self.current_control = ControlCommand()
+        self.mode = Mode.idle
+
+        await self._emit("control", self.current_control.model_dump())
+        await self._emit("status", {"mode": self.mode.value})
+
+    async def reset(self) -> None:
+        """Stop the loop and clear all session history."""
+        await self.pause()
+        self.state = SessionState()
+        await self._emit("reset", {})
+
+    async def manual_control(self, cmd: ControlCommand) -> None:
+        """Direct control bypass — pauses auto mode."""
+        if self.mode == Mode.auto:
+            await self._stop_loop()
+        self.mode = Mode.manual
+        self.current_control = cmd
+        self.car.set_control(cmd)
+        await self._emit("control", cmd.model_dump())
+        await self._emit("status", {"mode": self.mode.value})
+
+    # -- internal helpers ------------------------------------------------------
+
+    async def _start_loop(self) -> None:
+        await self._stop_loop()
+        self.state.active = True
         self.mode = Mode.auto
-
-        await self._emit("status", {"mode": self.mode.value, "autopilot": autopilot.name})
-        await self._emit("directive_start", {})
-        await self._emit("message", {"role": "user", "content": directive})
-
-        # Planning phase
-        log.info("Planning directive: %s", directive)
-        await self._emit("thinking", {})
-        try:
-            plan_result = await autopilot.plan(directive)
-        except Exception:
-            log.exception("Planning failed")
-            from vroomba.models import PlanResult
-            plan_result = PlanResult(ack="Understood. Let me try.", plan="(planning failed — proceeding turn by turn)")
-
-        self.state.plan = plan_result.plan
-        self.state.messages.append(
-            Message(role="assistant", content=plan_result.ack)
-        )
-        await self._emit("message", {"role": "assistant", "content": plan_result.ack})
-        await self._emit("directive_info", {
-            "directive": directive,
-            "plan": plan_result.plan,
-        })
-
-        # Start turn loop
+        await self._emit("status", {"mode": self.mode.value, "autopilot": self.autopilot.name})
         self._task = asyncio.create_task(self._turn_loop())
 
-    async def kill(self) -> None:
-        """Emergency stop: idle the car, cancel the turn loop."""
-        # Cancel tasks
+    async def _stop_loop(self) -> None:
         if self._keepalive_task and not self._keepalive_task.done():
             self._keepalive_task.cancel()
         if self._task and not self._task.done():
@@ -98,48 +119,17 @@ class AutopilotRunner:
             except asyncio.CancelledError:
                 pass
 
-        # Idle the car
-        self.car.idle()
-        self.current_control = ControlCommand()
-        self.mode = Mode.idle
-
-        await self._emit("control", self.current_control.model_dump())
-        await self._emit("status", {"mode": self.mode.value})
-
-    async def manual_control(self, cmd: ControlCommand) -> None:
-        """Direct control bypass (manual mode)."""
-        self.mode = Mode.manual
-        self.current_control = cmd
-        self.car.set_control(cmd)
-        await self._emit("control", cmd.model_dump())
-
-    async def resume(self, message: str | None = None) -> None:
-        """Resume autopilot after yield/kill, optionally with a user message."""
-        if self.state is None or self.autopilot is None:
-            return
-
-        if message:
-            self.state.messages.append(
-                Message(role="user", content=message)
-            )
-            await self._emit("message", {"role": "user", "content": message})
-
-        self.state.active = True
-        self.mode = Mode.auto
-        await self._emit("status", {"mode": self.mode.value})
-        self._task = asyncio.create_task(self._turn_loop())
-
     # -- turn loop -------------------------------------------------------------
 
     async def _turn_loop(self) -> None:
         """Core turn-based autopilot loop."""
         last_turn_time = time.monotonic()
 
-        while self.state and self.state.active and self.mode == Mode.auto:
+        while self.state.active and self.mode == Mode.auto:
             now = time.monotonic()
             elapsed = now - last_turn_time
             last_turn_time = now
-            turn_num = len(self.state.turns) + 1
+            turn_num = sum(1 for m in self.state.messages if m["role"] == "assistant") + 1
 
             log.info("Turn %d (elapsed %.1fs)", turn_num, elapsed)
             await self._emit("thinking", {})
@@ -147,7 +137,7 @@ class AutopilotRunner:
             # Call autopilot with timeout
             try:
                 result: TurnResult = await asyncio.wait_for(
-                    self.autopilot.step(self.state, {}),
+                    self.autopilot.step(self.state, elapsed),
                     timeout=settings.turn_timeout_seconds,
                 )
             except Exception as exc:
@@ -173,63 +163,38 @@ class AutopilotRunner:
                 self._keepalive(result.control)
             )
 
-            # Record turn
-            record = TurnRecord(
-                turn_number=turn_num,
-                timestamp=datetime.now(),
-                elapsed_seconds=round(elapsed, 2),
-                control=result.control,
-                summary=result.summary,
-            )
-            self.state.turns.append(record)
+            # Store the raw LLM JSON as an assistant message in session history
+            self.state.messages.append({
+                "role": "assistant",
+                "content": result.model_dump_json(),
+            })
 
-            turn_data = record.model_dump(mode="json")
-            turn_data["result"] = result.model_dump(mode="json")
+            # Emit turn event for the UI
+            turn_data = {
+                "turn_number": turn_num,
+                "elapsed_seconds": round(elapsed, 2),
+                "control": result.control.model_dump(),
+                "summary": result.summary,
+                "msg": result.msg,
+                "done": result.done,
+            }
             await self._emit("turn", turn_data)
             await self._emit("control", result.control.model_dump())
 
-            # Optional user message from LLM (non-terminal turns only;
-            # terminal turns handle messaging below)
-            if result.msg and not result.done and not result.yield_to_user:
-                self.state.messages.append(
-                    Message(role="assistant", content=result.msg)
-                )
+            # Optional LLM message to user
+            if result.msg:
                 await self._emit(
                     "message",
                     {"role": "assistant", "content": result.msg},
                 )
 
-            # Check yield / complete — always emit a message for terminal states
+            # Done = pause (car idles, loop stops, can resume/reset/message)
             if result.done:
-                log.info("Directive complete at turn %d", turn_num)
+                log.info("LLM signaled done at turn %d", turn_num)
                 self.car.idle()
                 self.current_control = ControlCommand()
                 self.state.active = False
                 self.mode = Mode.idle
-                completion_msg = result.msg or result.summary
-                self.state.messages.append(
-                    Message(role="assistant", content=completion_msg)
-                )
-                await self._emit(
-                    "message", {"role": "assistant", "content": completion_msg}
-                )
-                await self._emit("control", self.current_control.model_dump())
-                await self._emit("status", {"mode": self.mode.value})
-                break
-
-            if result.yield_to_user:
-                log.info("Yielding to user at turn %d", turn_num)
-                self.car.idle()
-                self.current_control = ControlCommand()
-                self.state.active = False
-                self.mode = Mode.idle
-                yield_msg = result.msg or result.summary
-                self.state.messages.append(
-                    Message(role="assistant", content=yield_msg)
-                )
-                await self._emit(
-                    "message", {"role": "assistant", "content": yield_msg}
-                )
                 await self._emit("control", self.current_control.model_dump())
                 await self._emit("status", {"mode": self.mode.value})
                 break
