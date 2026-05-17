@@ -10,10 +10,6 @@
   const inputForm      = document.getElementById("input-form");
   const inputBox       = document.getElementById("input-box");
   const modeBadge      = document.getElementById("mode-badge");
-  const dotArduino     = document.getElementById("dot-arduino");
-  const dotLlm         = document.getElementById("dot-llm");
-  const statusMode     = document.getElementById("status-mode");
-  const statusControl  = document.getElementById("status-control");
   const pauseBtn       = document.getElementById("pause-btn");
   const resetBtn       = document.getElementById("reset-btn");
   const turnList       = document.getElementById("turn-list");
@@ -24,6 +20,12 @@
   const pilotPickerMenu= document.getElementById("pilot-picker-menu");
   const micBtn         = document.getElementById("mic-btn");
   const ttsBtn         = document.getElementById("tts-btn");
+
+  // Footer status bar refs
+  const ftDotArduino   = document.getElementById("ft-dot-arduino");
+  const ftDotLlm       = document.getElementById("ft-dot-llm");
+  const ftMode         = document.getElementById("ft-mode");
+  const ftCtrl         = document.getElementById("ft-ctrl");
 
   // ---- state ----
   let currentMode = "idle";  // idle | auto | manual
@@ -221,16 +223,17 @@
   // ---- control display ----
 
   function updateControl(ctrl) {
-    statusControl.textContent = controlArrow(ctrl);
+    ftCtrl.textContent = controlArrow(ctrl);
   }
 
   // ---- mode ----
 
   function updateMode(mode) {
     currentMode = mode;
-    statusMode.textContent = mode.toUpperCase();
-    modeBadge.textContent = mode.toUpperCase();
+    modeBadge.textContent = "[" + mode.toUpperCase() + "]";
     modeBadge.className = "mode-badge " + mode;
+    ftMode.textContent = mode;
+    ftMode.className = "footer-mode " + mode;
     pauseBtn.classList.toggle("active-pulse", mode === "auto");
   }
 
@@ -240,8 +243,8 @@
     try {
       const res = await fetch("/status");
       const s = await res.json();
-      dotArduino.classList.toggle("ok", s.arduino_connected);
-      dotLlm.classList.toggle("ok", s.llm_available);
+      ftDotArduino.classList.toggle("ok", s.arduino_connected);
+      ftDotLlm.classList.toggle("ok", s.llm_available);
       updateMode(s.mode);
       if (s.autopilot_name) {
         pilotPickerBtn.textContent = s.autopilot_name;
