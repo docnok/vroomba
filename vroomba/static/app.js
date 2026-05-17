@@ -11,6 +11,7 @@
   const inputBox       = document.getElementById("input-box");
   const modeBadge      = document.getElementById("mode-badge");
   const pauseBtn       = document.getElementById("pause-btn");
+  const resumeBtn      = document.getElementById("resume-btn");
   const resetBtn       = document.getElementById("reset-btn");
   const turnList       = document.getElementById("turn-list");
   const debugModal     = document.getElementById("debug-modal");
@@ -26,29 +27,17 @@
   const ftDotLlm       = document.getElementById("ft-dot-llm");
   const ftMode         = document.getElementById("ft-mode");
   const ftCtrl         = document.getElementById("ft-ctrl");
+  const headerSpinner  = document.getElementById("header-spinner");
 
   // ---- state ----
   let currentMode = "idle";  // idle | auto | manual
   let pilotName = "VROOMBA";
   let ws = null;
   let wsReconnectTimer = null;
-  let spinnerEl = null;
+  let spinnerFrame = 0;
   let spinnerInterval = null;
-
-  const SPINNER_FRAMES = [
-    "◐ Calibrating flux capacitor",
-    "◓ Checking blind spots (just kidding)",
-    "◑ Consulting the road less traveled",
-    "◒ Revving neural engines",
-    "◐ Adjusting mirrors (don't have any)",
-    "◓ Calculating scenic route",
-    "◑ Warming up the hamster wheel",
-    "◒ Asking for directions",
-    "◐ Parallel parking in my mind",
-    "◓ Dodging imaginary potholes",
-    "◑ Recalculating everything",
-    "◒ Engaging turbo mode (beep boop)",
-  ];
+  let spinnerDirection = 1;
+  const DOT_COUNT = 8;
 
   // ---- arrow map ----
   const ARROW_MAP = {
@@ -176,17 +165,23 @@
     }
   }
 
+  // ---- helpers ----
+
+  function timeNow() {
+    const d = new Date();
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
+  }
+
   // ---- messages ----
 
   function addMessage(role, content) {
     clearSpinner();
     if (role === "assistant") speakText(content);
-    const labels = { user: "YOU", assistant: pilotName, system: "SYSTEM" };
     const div = document.createElement("div");
     div.className = `msg msg-${role}`;
     div.innerHTML =
-      `<div class="msg-label">${labels[role] || role.toUpperCase()}</div>` +
-      `<div class="msg-body">${escapeHtml(content)}</div>`;
+      `<span class="msg-time">${timeNow()}</span>` +
+      `<span class="msg-body">${escapeHtml(content)}</span>`;
     messageList.appendChild(div);
     messageList.scrollTop = messageList.scrollHeight;
   }
@@ -208,11 +203,12 @@
     const card = document.createElement("div");
     card.className = "turn-card";
     const arrow = controlArrow(data.control);
+    const ts = timeNow();
     card.innerHTML =
       `<div class="turn-card-header">` +
         `<span class="turn-num">#${data.turn_number}</span>` +
         `<span class="turn-arrow">${arrow}</span>` +
-        `<span class="turn-elapsed">+${Number(data.elapsed_seconds).toFixed(1)}s</span>` +
+        `<span class="turn-elapsed">${ts} · +${Number(data.elapsed_seconds).toFixed(1)}s</span>` +
       `</div>` +
       `<div class="turn-summary">${escapeHtml(data.summary)}</div>`;
     card.addEventListener("click", () => showDebug(data));
@@ -235,6 +231,7 @@
     ftMode.textContent = mode;
     ftMode.className = "footer-mode " + mode;
     pauseBtn.classList.toggle("active-pulse", mode === "auto");
+    resumeBtn.classList.toggle("btn-highlight", mode !== "auto");
   }
 
   // ---- status fetch ----
@@ -299,6 +296,12 @@
       return;
     }
 
+    if (e.key === "r" && document.activeElement !== inputBox) {
+      e.preventDefault();
+      fetch("/resume", { method: "POST" });
+      return;
+    }
+
     // Manual arrow key control (only when not typing)
     if (document.activeElement === inputBox) return;
 
@@ -331,28 +334,37 @@
     }
   });
 
-  // ---- spinner ----
+  // ---- spinner (footer dot-sweep) ----
+
+  function renderDots() {
+    let s = "";
+    for (let i = 0; i < DOT_COUNT; i++) {
+      const dist = Math.abs(i - spinnerFrame);
+      if (dist === 0) s += '<span class="dot-bright">●</span>';
+      else if (dist === 1) s += '<span class="dot-mid">●</span>';
+      else s += '<span class="dot-dim">·</span>';
+    }
+    headerSpinner.innerHTML = s;
+  }
 
   function showSpinner() {
-    if (spinnerEl) return; // already showing
-    spinnerEl = document.createElement("div");
-    spinnerEl.className = "msg msg-system spinner-msg";
-    let idx = Math.floor(Math.random() * SPINNER_FRAMES.length);
-    spinnerEl.innerHTML =
-      `<div class="msg-label">SYSTEM</div>` +
-      `<div class="msg-body spinner-text">${escapeHtml(SPINNER_FRAMES[idx])}</div>`;
-    messageList.appendChild(spinnerEl);
-    messageList.scrollTop = messageList.scrollHeight;
+    if (spinnerInterval) return;
+    spinnerFrame = 0;
+    spinnerDirection = 1;
+    headerSpinner.classList.remove("hidden");
+    renderDots();
     spinnerInterval = setInterval(() => {
-      idx = (idx + 1) % SPINNER_FRAMES.length;
-      const body = spinnerEl?.querySelector(".spinner-text");
-      if (body) body.textContent = SPINNER_FRAMES[idx];
-    }, 1500);
+      spinnerFrame += spinnerDirection;
+      if (spinnerFrame >= DOT_COUNT - 1) spinnerDirection = -1;
+      if (spinnerFrame <= 0) spinnerDirection = 1;
+      renderDots();
+    }, 120);
   }
 
   function clearSpinner() {
     if (spinnerInterval) { clearInterval(spinnerInterval); spinnerInterval = null; }
-    if (spinnerEl) { spinnerEl.remove(); spinnerEl = null; }
+    headerSpinner.classList.add("hidden");
+    headerSpinner.innerHTML = "";
   }
 
   // ---- autopilot picker ----
@@ -392,6 +404,10 @@
 
   pauseBtn.addEventListener("click", () => {
     fetch("/pause", { method: "POST" });
+  });
+
+  resumeBtn.addEventListener("click", () => {
+    fetch("/resume", { method: "POST" });
   });
 
   resetBtn.addEventListener("click", () => {

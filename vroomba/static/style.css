@@ -145,31 +145,40 @@ html, body {
 /* ---- messages ---- */
 
 .msg {
-  margin-bottom: 12px;
+  margin-bottom: 0.5em;
   white-space: pre-wrap;
   word-break: break-word;
+  line-height: 1.5;
+  padding: 0.25em 1ch;
+  border-left: 2px solid var(--border);
 }
 
-.msg-user .msg-label     { color: var(--amber); }
-.msg-assistant .msg-label { color: var(--cyan); }
-.msg-system .msg-label    { color: var(--text-dim); }
-
-.msg-label {
-  letter-spacing: 0.5px;
-  margin-bottom: 2px;
+.msg-user {
+  border-left-color: var(--amber);
+  background: rgba(232, 180, 90, 0.04);
 }
 
-.msg-label::before {
-  content: '▸ ';
+.msg-assistant {
+  border-left-color: var(--cyan);
+}
+
+.msg-system {
+  border-left-color: var(--text-dim);
+}
+
+.msg-time {
   color: var(--text-dim);
+  font-size: 11px;
+  margin-right: 1ch;
 }
 
 .msg-body {
-  padding-left: 14px;
   color: var(--text);
 }
 
-.msg-user .msg-body { color: #d4c49a; }
+.msg-user .msg-body     { color: #d4c49a; }
+.msg-assistant .msg-body { color: var(--text); }
+.msg-system .msg-body    { color: var(--text-dim); }
 
 /* ---- input ---- */
 
@@ -357,6 +366,14 @@ html, body {
   color: var(--red);
 }
 
+#resume-btn:hover {
+  color: var(--green);
+}
+
+#resume-btn.btn-highlight {
+  color: var(--green);
+}
+
 #reset-btn:hover {
   color: var(--amber);
 }
@@ -380,15 +397,25 @@ html, body {
   50% { opacity: 0.4; }
 }
 
-/* ---- spinner ---- */
+/* ---- spinner (header dot-sweep) ---- */
 
-.spinner-msg {
-  opacity: 0.5;
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 1ch;
 }
 
-.spinner-text {
-  color: var(--text-dim) !important;
+.header-spinner {
+  display: inline;
+  letter-spacing: 2px;
+  line-height: 1;
 }
+
+.header-spinner.hidden { display: none; }
+
+.dot-bright { color: var(--green); }
+.dot-mid    { color: var(--green-dim); }
+.dot-dim    { color: var(--border); }
 
 /* ---- autopilot picker ---- */
 

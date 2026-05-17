@@ -11,7 +11,10 @@
     <!-- Header -->
     <header id="header">
       <span class="logo">▸ VROOMBA</span>
-      <span class="mode-badge" id="mode-badge">[IDLE]</span>
+      <div class="header-right">
+        <span id="header-spinner" class="header-spinner hidden"></span>
+        <span class="mode-badge" id="mode-badge">[IDLE]</span>
+      </div>
     </header>
 
     <div id="columns">
@@ -43,6 +46,8 @@
           <div class="footer-right">
             <span class="footer-hint-key">esc</span> pause
             <span class="footer-sep">·</span>
+            <span class="footer-hint-key">r</span> resume
+            <span class="footer-sep">·</span>
             <span class="footer-hint-key">↑↓←→</span> drive
           </div>
         </footer>
@@ -59,9 +64,10 @@
           </div>
         </div>
 
-        <!-- Pause / Reset -->
+        <!-- Pause / Resume / Reset -->
         <div class="btn-row">
           <button id="pause-btn" title="Pause autopilot (Esc)">pause</button>
+          <button id="resume-btn" title="Resume autopilot (r)">resume</button>
           <button id="reset-btn" title="Reset session">reset</button>
         </div>
 
