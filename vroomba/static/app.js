@@ -25,9 +25,12 @@
   // Footer status bar refs
   const ftDotArduino   = document.getElementById("ft-dot-arduino");
   const ftDotLlm       = document.getElementById("ft-dot-llm");
+  const ftDotCamera    = document.getElementById("ft-dot-camera");
   const ftMode         = document.getElementById("ft-mode");
   const ftCtrl         = document.getElementById("ft-ctrl");
   const headerSpinner  = document.getElementById("header-spinner");
+  const cameraFeed     = document.getElementById("camera-feed");
+  const cameraOffline  = document.getElementById("camera-offline");
 
   // ---- state ----
   let currentMode = "idle";  // idle | auto | manual
@@ -58,6 +61,7 @@
 
   function speakText(text) {
     if (!ttsEnabled || !window.speechSynthesis) return;
+    // Cancel any pending/stuck utterances (workaround for browser TTS bugs)
     window.speechSynthesis.cancel();
     const utt = new SpeechSynthesisUtterance(text);
     const voices = window.speechSynthesis.getVoices();
@@ -66,6 +70,7 @@
     ) || voices.find(v => /en/i.test(v.lang) && v.localService);
     if (preferred) utt.voice = preferred;
     utt.rate = 1.05;
+    utt.onerror = (e) => console.warn("TTS error:", e.error);
     window.speechSynthesis.speak(utt);
   }
 
@@ -242,6 +247,8 @@
       const s = await res.json();
       ftDotArduino.classList.toggle("ok", s.arduino_connected);
       ftDotLlm.classList.toggle("ok", s.llm_available);
+      ftDotCamera.classList.toggle("ok", !!s.camera_available);
+      cameraOffline.classList.toggle("hidden", !!s.camera_available);
       updateMode(s.mode);
       if (s.autopilot_name) {
         pilotPickerBtn.textContent = s.autopilot_name;
@@ -387,6 +394,17 @@
       item.innerHTML =
         `<div class="pilot-option-name">${escapeHtml(p.name)}</div>` +
         `<div class="pilot-option-desc">${escapeHtml(p.description)}</div>`;
+      item.addEventListener("click", async () => {
+        await fetch("/autopilot", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: p.name.toLowerCase() }),
+        });
+        pilotPickerBtn.textContent = p.name;
+        pilotName = p.name.toUpperCase();
+        pilotPickerMenu.classList.add("hidden");
+        fetchStatus();
+      });
       pilotPickerMenu.appendChild(item);
     }
   }

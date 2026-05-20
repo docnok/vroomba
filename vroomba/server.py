@@ -1,7 +1,5 @@
 """FastAPI server — REST + WebSocket + static file serving."""
 
-from __future__ import annotations
-
 import asyncio
 import json
 import logging
@@ -9,12 +7,13 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from vroomba.autopilot import get_autopilot
 from vroomba.autopilot.runner import AutopilotRunner
+from vroomba.camera import CameraManager
 from vroomba.car import CarInterface
 from vroomba.config import settings
 from vroomba.models import ControlCommand, Mode
@@ -27,6 +26,7 @@ STATIC_DIR = Path(__file__).parent / "static"
 
 car: CarInterface
 runner: AutopilotRunner
+camera: CameraManager
 ws_clients: set[WebSocket] = set()
 
 
@@ -45,10 +45,18 @@ async def broadcast(event_type: str, data: dict) -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global car, runner
+    global car, runner, camera
     car = CarInterface(port=settings.serial_port, baud=settings.serial_baud)
     runner = AutopilotRunner(car)
     runner.add_listener(broadcast)
+
+    # Camera
+    camera = CameraManager()
+    if settings.camera_enabled:
+        if camera.start():
+            runner.camera = camera
+        else:
+            log.warning("Camera not available — running without video")
 
     # Default autopilot
     pilot = get_autopilot("homer")
@@ -64,6 +72,7 @@ async def lifespan(app: FastAPI):
     yield
 
     await runner.pause()
+    camera.stop()
     car.disconnect()
 
 
@@ -115,6 +124,7 @@ async def get_status():
     return {
         "arduino_connected": car.is_connected,
         "llm_available": await llm_mod.is_available(),
+        "camera_available": camera.is_running,
         "mode": runner.mode.value,
         "autopilot_name": runner.autopilot.name if runner.autopilot else None,
         "current_control": runner.current_control.model_dump(),
@@ -124,6 +134,18 @@ async def get_status():
 @app.get("/state")
 async def get_state():
     return {"state": runner.state.model_dump(mode="json")}
+
+
+class AutopilotRequest(BaseModel):
+    name: str
+
+
+@app.post("/autopilot")
+async def set_autopilot(req: AutopilotRequest):
+    pilot = get_autopilot(req.name)
+    await runner.pause()
+    runner.set_autopilot(pilot)
+    return {"status": "ok", "autopilot": pilot.name}
 
 
 @app.get("/autopilots")
@@ -137,6 +159,40 @@ async def list_autopilots():
 
 
 # -- WebSocket ----------------------------------------------------------------
+
+@app.get("/camera/snapshot")
+async def camera_snapshot():
+    frame = camera.get_frame()
+    if frame is None:
+        return Response(status_code=503, content="Camera not available")
+    return Response(content=frame, media_type="image/jpeg")
+
+
+@app.get("/camera/stream")
+async def camera_stream():
+    async def generate():
+        while True:
+            frame = camera.get_frame()
+            if frame is not None:
+                yield (
+                    b"--frame\r\n"
+                    b"Content-Type: image/jpeg\r\n\r\n" + frame + b"\r\n"
+                )
+            await asyncio.sleep(1.0 / settings.camera_fps)
+
+    return StreamingResponse(
+        generate(),
+        media_type="multipart/x-mixed-replace; boundary=frame",
+    )
+
+
+@app.get("/camera/status")
+async def camera_status():
+    return {
+        "available": camera.is_running,
+        "resolution": list(camera.resolution) if camera.resolution else None,
+    }
+
 
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket):

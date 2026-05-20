@@ -1,13 +1,12 @@
 """AutopilotRunner — orchestrates the turn-based autopilot loop."""
 
-from __future__ import annotations
-
 import asyncio
 import json
 import logging
 import time
 
 from vroomba.autopilot.base import Autopilot
+from vroomba.camera import CameraManager
 from vroomba.car import CarInterface
 from vroomba.config import settings
 from vroomba.models import (
@@ -26,6 +25,7 @@ class AutopilotRunner:
     def __init__(self, car: CarInterface):
         self.car = car
         self.autopilot: Autopilot | None = None
+        self.camera: CameraManager | None = None
         self.state = SessionState()
         self.mode: Mode = Mode.idle
         self.current_control = ControlCommand()
@@ -134,10 +134,15 @@ class AutopilotRunner:
             log.info("Turn %d (elapsed %.1fs)", turn_num, elapsed)
             await self._emit("thinking", {})
 
+            # Grab camera frame (if available)
+            frame_b64: str | None = None
+            if self.camera is not None:
+                frame_b64 = self.camera.get_frame_b64()
+
             # Call autopilot with timeout
             try:
                 result: TurnResult = await asyncio.wait_for(
-                    self.autopilot.step(self.state, elapsed),
+                    self.autopilot.step(self.state, elapsed, frame_b64=frame_b64),
                     timeout=settings.turn_timeout_seconds,
                 )
             except Exception as exc:
@@ -175,6 +180,7 @@ class AutopilotRunner:
                 "elapsed_seconds": round(elapsed, 2),
                 "control": result.control.model_dump(),
                 "summary": result.summary,
+                "scene": result.scene,
                 "msg": result.msg,
                 "done": result.done,
             }

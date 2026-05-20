@@ -140,6 +140,7 @@ html, body {
 
 #messages {
   flex: 1;
+  min-height: 100px;
 }
 
 /* ---- messages ---- */
@@ -485,6 +486,40 @@ html, body {
 /* ---- turns ---- */
 
 #turns-panel { flex: 1; }
+
+/* ---- camera feed ---- */
+
+#camera-panel {
+  flex: 0 0 auto;
+}
+
+.camera-feed-wrap {
+  position: relative;
+  background: #000;
+  line-height: 0;
+  max-height: 65vh;
+}
+
+#camera-feed {
+  width: 100%;
+  max-height: 65vh;
+  object-fit: contain;
+  display: block;
+}
+
+.camera-offline {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+  letter-spacing: 2px;
+  font-size: 11px;
+  background: var(--bg-panel);
+}
+
+.camera-offline.hidden { display: none; }
 
 .turn-card {
   border-left: 2px solid var(--border);

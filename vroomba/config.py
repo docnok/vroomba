@@ -15,6 +15,15 @@ class Settings(BaseSettings):
     llm_model: str = "gemma4:26b"
     llm_api_key: str = "ollama"
     llm_max_tokens: int = 256
+    llm_image_tokens: int = 140
+
+    # Camera
+    camera_enabled: bool = True
+    camera_index: int = 1
+    camera_width: int = 640
+    camera_height: int = 480
+    camera_fps: int = 15
+    camera_jpeg_quality: int = 70
 
     # Autopilot
     turn_timeout_seconds: float = 30.0

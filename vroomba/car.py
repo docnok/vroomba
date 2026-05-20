@@ -1,7 +1,5 @@
 """Serial interface to the Arduino running remote_hijack.ino."""
 
-from __future__ import annotations
-
 import glob
 import logging
 import threading

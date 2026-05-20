@@ -20,6 +20,15 @@
     <div id="columns">
       <!-- Main column -->
       <main id="main-col">
+        <!-- Camera feed -->
+        <div class="panel" id="camera-panel">
+          <div class="panel-header"><span class="panel-header-label">CAMERA</span></div>
+          <div class="camera-feed-wrap">
+            <img id="camera-feed" src="/camera/stream" alt="camera feed">
+            <div id="camera-offline" class="camera-offline">NO SIGNAL</div>
+          </div>
+        </div>
+
         <div id="messages" class="panel">
           <div class="panel-header"><span class="panel-header-label">COMMS</span></div>
           <div id="message-list" class="scroll-area"></div>
@@ -38,6 +47,9 @@
             <span class="footer-sep">·</span>
             <span class="footer-dot" id="ft-dot-llm"></span>
             <span class="footer-label">llm</span>
+            <span class="footer-sep">·</span>
+            <span class="footer-dot" id="ft-dot-camera"></span>
+            <span class="footer-label">cam</span>
             <span class="footer-sep">·</span>
             <span class="footer-label">mode:</span><span class="footer-mode" id="ft-mode">idle</span>
             <span class="footer-sep">·</span>

@@ -1,9 +1,11 @@
 """Autopilot registry."""
 
+from vroomba.autopilot.argus import ArgusAutopilot
 from vroomba.autopilot.homer import HomerAutopilot
 
 AUTOPILOTS: dict[str, type] = {
     "homer": HomerAutopilot,
+    "argus": ArgusAutopilot,
 }
 
 

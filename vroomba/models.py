@@ -1,7 +1,5 @@
 """Shared Pydantic models for the vroomba autopilot system."""
 
-from __future__ import annotations
-
 from datetime import datetime
 from enum import Enum
 
@@ -61,6 +59,10 @@ class TurnResult(BaseModel):
 
     control: ControlCommand
     summary: str = Field(description="Brief reasoning for this turn")
+    scene: str | None = Field(
+        default=None,
+        description="Description of what the camera sees (vision autopilots only)",
+    )
     msg: str | None = Field(
         default=None,
         description="Optional message to display to the user",

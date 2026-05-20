@@ -1,7 +1,5 @@
 """Async LLM client — OpenAI-compatible (works with ollama, vLLM, etc.)."""
 
-from __future__ import annotations
-
 import json
 import logging
 
@@ -47,7 +45,7 @@ async def complete(messages: list[dict]) -> TurnResult:
         model=settings.llm_model,
         messages=messages,
         response_format={"type": "json_schema", "json_schema": {"name": "TurnResult", "schema": TurnResult.model_json_schema()}},
-        extra_body={"reasoning_effort": "none"},
+        extra_body={"reasoning_effort": "none", "num_image_tokens": settings.llm_image_tokens},
         max_tokens=settings.llm_max_tokens,
     )
     raw = response.choices[0].message.content or ""

@@ -5,6 +5,7 @@ description = "LLM-powered RC car autopilot with retro terminal UI"
 requires-python = ">=3.14"
 dependencies = [
     "fastapi>=0.115",
+    "opencv-python-headless>=4.10",
     "openai>=1.40",
     "pydantic-settings>=2.7",
     "pynput>=1.8.2",

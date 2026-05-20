@@ -1,7 +1,5 @@
 """Abstract base class for autopilot implementations."""
 
-from __future__ import annotations
-
 from abc import ABC, abstractmethod
 
 from vroomba.models import SessionState, TurnResult
@@ -24,7 +22,7 @@ class Autopilot(ABC):
         ...
 
     @abstractmethod
-    async def step(self, state: SessionState, elapsed: float) -> TurnResult:
+    async def step(self, state: SessionState, elapsed: float, frame_b64: str | None = None) -> TurnResult:
         """Execute one autopilot turn: read session state, return controls."""
         ...
 

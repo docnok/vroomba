@@ -1,7 +1,5 @@
 """Homer — the blind autopilot. Dead reckoning only, no sensors."""
 
-from __future__ import annotations
-
 from vroomba.autopilot.base import Autopilot
 from vroomba.models import SessionState, TurnResult
 from vroomba import llm
@@ -38,7 +36,7 @@ class HomerAutopilot(Autopilot):
     def system_prompt(self) -> str:
         return _IDENTITY
 
-    async def step(self, state: SessionState, elapsed: float) -> TurnResult:
+    async def step(self, state: SessionState, elapsed: float, frame_b64: str | None = None) -> TurnResult:
         messages = self.build_step_messages(state, elapsed)
         return await llm.complete(messages)
 
