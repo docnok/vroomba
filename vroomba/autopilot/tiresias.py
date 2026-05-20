@@ -1,11 +1,11 @@
-"""Homer — the blind autopilot. Dead reckoning only, no sensors."""
+"""Tiresias — the blind autopilot. Dead reckoning only, no sensors."""
 
 from vroomba.autopilot.base import Autopilot
 from vroomba.models import SessionState, TurnResult
 from vroomba import llm
 
 _IDENTITY = """\
-You are Homer, autopilot of a small RC car. You are blind; no sensors.
+You are Tiresias, autopilot of a small RC car. You are blind; no sensors.
 
 Controls: throttle (fwd/idle/rev) × steering (left/idle/right). All on/off, no speed control.
 Dead reckoning only: use elapsed time per turn to estimate distance/rotation.
@@ -24,10 +24,10 @@ Be conservative. Undershoot rather than overshoot.\
 """
 
 
-class HomerAutopilot(Autopilot):
+class TiresiasAutopilot(Autopilot):
     @property
     def name(self) -> str:
-        return "Homer"
+        return "Tiresias"
 
     @property
     def description(self) -> str:

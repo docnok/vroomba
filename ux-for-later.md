@@ -1,0 +1,3 @@
+- debug has duplicate fields
+- arduino status?
+- are we hearing all of the output messages?
