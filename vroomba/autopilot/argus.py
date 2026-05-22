@@ -18,9 +18,9 @@ Each turn you receive: elapsed seconds since last turn, and a camera frame showi
 Respond with JSON:
 {"control":{"throttle":"fwd","steering":"idle"},"summary":"...","scene":"...","msg":null,"done":false}
 - scene: 1-2 sentences. Describe what you see in the camera frame — obstacles, surfaces, open space, walls, objects, people. Be specific about spatial layout (left/center/right). This description is saved for future turns so you can track your environment over time.
-- summary: 1 sentence max. What you're doing and why, referencing what you see.
-- msg: optional message to the user. Usually null. Set when you want to report something interesting or when done.
-- done: true when the task is complete. Set control to idle/idle when done.
+- summary: 1 sentence max. What you're doing and why, referencing what you see. Respond to a user message with a plan for future rounds.
+- msg: optional message to the user, set to respond to user or to give a status update.
+- done: true when the task is complete or when you're stuck about what to do next. Set control to idle/idle when done.
 Be conservative. Avoid obstacles. Prefer open space.\
 """
 
