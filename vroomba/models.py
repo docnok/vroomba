@@ -18,6 +18,7 @@ class Steering(str, Enum):
     right = "right"
 
 
+# TODO: should the bitmasks be here or in the car.py interface?
 class ControlCommand(BaseModel):
     """Car control: throttle × steering. Both default to idle."""
 
@@ -69,11 +70,31 @@ class TurnResult(BaseModel):
     )
     done: bool = False
 
+class UserMessage(BaseModel):
+    """Wrapper for user messages"""
+    time: float = Field(description="Message timestamp (monotonic)")
+    content: str = Field(description="Message content")
+
+class AutopilotMessage(BaseModel):
+    """Wrapper for autopilot messages"""
+    time: float = Field(description="Message timestamp (monotonic)")
+    turn: int = Field(description="Autopilot turn number in this session")
+    result: TurnResult = Field(description="Autopilot decision this turn")
+
+    def to_plaintext(self) -> str:
+        """Concise plaintext rendering for the LLM's conversation history."""
+        r = self.result
+        parts = [f"[Turn {self.turn} {r.control.arrow}] {r.summary}"]
+        if r.scene:
+            parts.append(f"Scene: {r.scene}")
+        if r.done:
+            parts.append("(done)")
+        return "\n".join(parts)
 
 class SessionState(BaseModel):
     """Session state: just a message list (same format the LLM consumes)."""
 
-    messages: list[dict] = Field(default_factory=list)
+    messages: list[UserMessage | AutopilotMessage] = Field(default_factory=list, description="User and autopilot messages for this session")
     active: bool = True
 
 

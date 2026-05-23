@@ -10,10 +10,12 @@ from vroomba.camera import CameraManager
 from vroomba.car import CarInterface
 from vroomba.config import settings
 from vroomba.models import (
+    AutopilotMessage,
     ControlCommand,
     Mode,
     SessionState,
     TurnResult,
+    UserMessage,
 )
 
 log = logging.getLogger(__name__)
@@ -56,7 +58,7 @@ class AutopilotRunner:
         if self.autopilot is None:
             return
 
-        self.state.messages.append({"role": "user", "content": text})
+        self.state.messages.append(UserMessage(time=time.monotonic(), content=text))
         await self._emit("message", {"role": "user", "content": text})
 
         # If already running, the loop will see the message on the next turn
@@ -129,7 +131,7 @@ class AutopilotRunner:
             now = time.monotonic()
             elapsed = now - last_turn_time
             last_turn_time = now
-            turn_num = sum(1 for m in self.state.messages if m["role"] == "assistant") + 1
+            turn_num = sum(1 for m in self.state.messages if isinstance(m, AutopilotMessage)) + 1
 
             log.info("Turn %d (elapsed %.1fs)", turn_num, elapsed)
             await self._emit("thinking", {})
@@ -168,11 +170,10 @@ class AutopilotRunner:
                 self._keepalive(result.control)
             )
 
-            # Store the raw LLM JSON as an assistant message in session history
-            self.state.messages.append({
-                "role": "assistant",
-                "content": result.model_dump_json(),
-            })
+            # Store structured autopilot message in session history
+            self.state.messages.append(
+                AutopilotMessage(time=time.monotonic(), turn=turn_num, result=result)
+            )
 
             # Emit turn event for the UI
             turn_data = {
