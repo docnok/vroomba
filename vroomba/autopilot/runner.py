@@ -58,7 +58,7 @@ class AutopilotRunner:
         if self.autopilot is None:
             return
 
-        self.state.messages.append(UserMessage(time=time.monotonic(), content=text))
+        self.state.messages.append(UserMessage(time=time.strftime("%H:%M:%S"), content=text))
         await self._emit("message", {"role": "user", "content": text})
 
         # If already running, the loop will see the message on the next turn
@@ -144,7 +144,7 @@ class AutopilotRunner:
             # Call autopilot with timeout
             try:
                 result: TurnResult = await asyncio.wait_for(
-                    self.autopilot.step(self.state, elapsed, frame_b64=frame_b64),
+                    self.autopilot.step(self.state, frame_b64=frame_b64),
                     timeout=settings.turn_timeout_seconds,
                 )
             except Exception as exc:
@@ -172,7 +172,7 @@ class AutopilotRunner:
 
             # Store structured autopilot message in session history
             self.state.messages.append(
-                AutopilotMessage(time=time.monotonic(), turn=turn_num, result=result)
+                AutopilotMessage(time=time.strftime("%H:%M:%S"), turn=turn_num, result=result)
             )
 
             # Emit turn event for the UI

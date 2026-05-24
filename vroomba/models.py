@@ -72,12 +72,12 @@ class TurnResult(BaseModel):
 
 class UserMessage(BaseModel):
     """Wrapper for user messages"""
-    time: float = Field(description="Message timestamp (monotonic)")
+    time: str = Field(description="Message timestamp")
     content: str = Field(description="Message content")
 
 class AutopilotMessage(BaseModel):
     """Wrapper for autopilot messages"""
-    time: float = Field(description="Message timestamp (monotonic)")
+    time: str = Field(description="Message timestamp")
     turn: int = Field(description="Autopilot turn number in this session")
     result: TurnResult = Field(description="Autopilot decision this turn")
 

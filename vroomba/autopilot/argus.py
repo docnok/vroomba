@@ -13,15 +13,19 @@ Car speed: ~1-2 ft/s. Full-lock steering while moving = wide arc. Idle throttle 
 """
 
 _STEP_INSTRUCTIONS = """\
-Each turn you receive: elapsed seconds since last turn, and a camera frame showing what's ahead.
+Each turn you receive a timestamped history of user instructions and your previous actions (encoded as assistant messages that contain your previous scene descriptions, summary assessments, and control actions), plus a current camera frame showing what's ahead. Consider carefully the user instructions, your previous actions, and what you see to decide what to do next.
 
-Respond with JSON:
-{"control":{"throttle":"fwd","steering":"idle"},"summary":"...","scene":"...","msg":null,"done":false}
+Your response on the first turn after a new user message should include a detailed plan for how to accomplish the user task over multiple turns referencing the user instructions and your previous actions. Plans must always contain concrete "done" criteria --- when will you set done=true, even if you get no further instructions from the user? In particular, if you intend to refuse the task and cannot create a plan, always set done=true and give a message explaining why you can't do the task. On subsequent turns, you should briefly assess your progress towards the user task and determine what to do next.
+
+After determining what to do next, specify your control action for this turn. Your control holds until next turn. Turn duration varies (1-3s typical); factor this into distance estimates.
+
+Respond with JSON, e.g.: {"summary":"...","scene":"...","control":{"throttle":"fwd","steering":"idle"},"msg":null,"done":false}
+- summary: An assessment of the current situation and your plans about what to do next. First message after a new user message should include a detailed plan, otherwise give a brief (1-2 sentence max) assessment of your progress and next steps.
 - scene: 1-2 sentences. Describe what you see in the camera frame — obstacles, surfaces, open space, walls, objects, people. Be specific about spatial layout (left/center/right). This description is saved for future turns so you can track your environment over time.
-- summary: 1 sentence max. What you're doing and why, referencing what you see. Respond to a user message with a plan for future rounds.
-- msg: optional message to the user, set to respond to user or to give an occasional status update.
-- done: true when the task is complete or when you need further instructions. Set control to idle/idle when done.
-Be conservative. Avoid obstacles. Prefer open space.\
+- control: Your control action for this turn, which will hold until the next turn. Choose from throttle (fwd/idle/rev) × steering (left/idle/right). All on/off, no speed control.
+- msg: Usually null message to the user, set to respond to user messages or to give periodic status updates. Always give a status update when you receive a new user message or set done=true.
+- done: True when the user task is complete or when you intend to wait for further instructions. Set control to idle/idle when done.
+Be conservative. Avoid obstacles. Prefer open space. Undershoot rather than overshoot.\
 """
 
 
@@ -37,34 +41,29 @@ class ArgusAutopilot(Autopilot):
     def system_prompt(self) -> str:
         return _IDENTITY
 
-    async def step(self, state: SessionState, elapsed: float, frame_b64: str | None = None) -> TurnResult:
-        messages = self.build_step_messages(state, elapsed, frame_b64)
+    async def step(self, state: SessionState, frame_b64: str | None = None) -> TurnResult:
+        messages = self.build_step_messages(state, frame_b64)
         return await llm.complete(messages)
 
-    def build_step_messages(self, state: SessionState, elapsed: float, frame_b64: str | None = None) -> list[dict]:
-        turn_num = sum(1 for m in state.messages if isinstance(m, AutopilotMessage)) + 1
-
+    def build_step_messages(self, state: SessionState, frame_b64: str | None = None) -> list[dict]:
         # Convert typed session messages to chat format
         history = []
         for m in state.messages:
             if isinstance(m, UserMessage):
-                history.append({"role": "user", "content": m.content})
+                history.append({"role": "user", "content": f"({m.time}) {m.content}"})
             elif isinstance(m, AutopilotMessage):
-                history.append({"role": "assistant", "content": m.to_plaintext()})
+                history.append({"role": "assistant", "content": f"({m.time}) {m.to_plaintext()}"})
 
         # Build the current turn's user message with optional image
-        turn_text = f"T{turn_num}. +{elapsed:.1f}s. JSON:"
-
         if frame_b64 is not None:
             user_content = [
-                {"type": "text", "text": turn_text},
                 {
                     "type": "image_url",
                     "image_url": {"url": f"data:image/jpeg;base64,{frame_b64}"},
                 },
             ]
         else:
-            user_content = f"[no camera frame available] {turn_text}"
+            user_content = "[no camera frame available] JSON:"
 
         return [
             {"role": "system", "content": f"{_IDENTITY}\n\n{_STEP_INSTRUCTIONS}"},

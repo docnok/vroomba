@@ -22,11 +22,11 @@ class Autopilot(ABC):
         ...
 
     @abstractmethod
-    async def step(self, state: SessionState, elapsed: float, frame_b64: str | None = None) -> TurnResult:
+    async def step(self, state: SessionState, frame_b64: str | None = None) -> TurnResult:
         """Execute one autopilot turn: read session state, return controls."""
         ...
 
     @abstractmethod
-    def build_step_messages(self, state: SessionState, elapsed: float) -> list[dict]:
+    def build_step_messages(self, state: SessionState) -> list[dict]:
         """Assemble the LLM message list for a step() call."""
         ...
