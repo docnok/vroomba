@@ -4,6 +4,7 @@ import json
 import logging
 
 from openai import AsyncOpenAI
+from ollama import AsyncClient
 
 from vroomba.config import settings
 from vroomba.models import TurnResult
@@ -19,7 +20,7 @@ def _build_client() -> AsyncOpenAI:
 
 
 _client: AsyncOpenAI | None = None
-
+_ollama_client: AsyncClient | None = AsyncClient()
 
 def get_client() -> AsyncOpenAI:
     global _client
@@ -36,6 +37,29 @@ async def is_available() -> bool:
         return True
     except Exception:
         return False
+    
+async def complete_ollama(messages: list[dict]) -> TurnResult:
+    response = await _ollama_client.chat(
+        model=settings.llm_model,
+        messages=messages,
+        format=TurnResult.model_json_schema(),
+        think=False,
+        options={"num_image_tokens": settings.llm_image_tokens}
+    )
+
+    result = TurnResult.model_validate_json(response.message.content)
+
+
+    prompt_eval_count = response.get("prompt_eval_count", 0)
+    prompt_eval_dur_ns = response.get("prompt_eval_duration", 0)
+    eval_count = response.get("eval_count", 0)
+    eval_dur_ns = response.get("eval_duration", 0)
+    total_dur_ns = response.get("total_duration", 0)
+    load_dur_ns = response.get("load_duration", 0)
+
+    log.info(f"Ollama response: prompt_eval_count={prompt_eval_count} prompt_eval_dur_ms={prompt_eval_dur_ns/1e6:.2f} eval_count={eval_count} eval_dur_ms={eval_dur_ns/1e6:.2f} total_dur_ms={total_dur_ns/1e6:.2f} load_dur_ms={load_dur_ns/1e6:.2f}")
+    
+    return result
 
 
 async def complete(messages: list[dict]) -> TurnResult:
