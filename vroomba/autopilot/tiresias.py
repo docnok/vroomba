@@ -16,14 +16,17 @@ Car speed: ~1-2 ft/s. Full-lock steering while moving = wide arc. Idle throttle 
 """
 
 _STEP_INSTRUCTIONS = """\
-Each turn you receive a history of user instructions and previous actions, plus the total elapsed
-seconds since last turn. Your control holds until next turn. Turn duration varies (1-3s typical); factor this
-into distance estimates.
+Each turn you receive two pieces of information: (1) elapsed seconds since last turn, and (2) a history of user instructions and your previous actions (encoded as assistant messages that contain your previous summary assessments and control actions). Consider carefully the user instructions and your previous actions to decide what to do next.
 
-Respond with JSON: {"control":{"throttle":"fwd","steering":"idle"},"summary":"...","msg":null,"done":false}
-- summary: 1 sentence max. What you're doing and why. After receiving user directions write a short plan for future rounds.
-- msg: usually null message to the user, set to respond to user messages or to give periodic status updates.
-- done: true when the task is complete or when you need further instructions. Set control to idle/idle when done.
+Your response on the first turn after a new user message should include a detailed plan for how to accomplish the user task over multiple turns referencing the user instructions and your previous actions. Plans must always contain concrete "done" critieria --- when will you set done=true, even if you get no further instructions from the user? On subsequent turns, you should briefly assess your progress towards the user task and determine what to do next.
+
+After determining what to do next, specify your control action for this turn. Your control holds until next turn. Turn duration varies (1-3s typical); factor this into distance estimates.
+
+Respond with JSON, e.g.: {"summary":"...","control":{"throttle":"fwd","steering":"idle"},"msg":null,"done":false}
+- summary: An assessment of the current situation and your plans about what to do next. First message after a new user message should include a detailed plan, otherwise give a brief (1-2 sentence max) assessment of your progress and next steps.
+- control: Your control action for this turn, which will hold until the next turn. Choose from throttle (fwd/idle/rev) × steering (left/idle/right). All on/off, no speed control.
+- msg: Usually null message to the user, set to respond to user messages or to give periodic status updates. Always give a status update when you set done=true.
+- done: True when the user task is complete or when you intend to wait for further instructions. Set control to idle/idle when done.
 Be conservative. Undershoot rather than overshoot.\
 """
 
@@ -53,7 +56,6 @@ class TiresiasAutopilot(Autopilot):
             elif isinstance(m, AutopilotMessage):
                 history.append({"role": "assistant", "content": m.to_plaintext()})
         return [
-            {"role": "system", "content": f"{_IDENTITY}\n\n{_STEP_INSTRUCTIONS}"},
+            {"role": "system", "content": f"{_IDENTITY}\n\n{_STEP_INSTRUCTIONS}\n\nElapsed: {elapsed:.1f}s"},
             *history,
-            {"role": "user", "content": f"Elapsed: {elapsed:.1f}s"},
         ]

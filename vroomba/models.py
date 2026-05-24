@@ -58,17 +58,17 @@ class ControlCommand(BaseModel):
 class TurnResult(BaseModel):
     """Structured output returned by the LLM each turn."""
 
-    control: ControlCommand
     summary: str = Field(description="Brief reasoning for this turn")
     scene: str | None = Field(
         default=None,
         description="Description of what the camera sees (vision autopilots only)",
     )
+    control: ControlCommand = Field(description="Control command for this turn")
     msg: str | None = Field(
         default=None,
         description="Optional message to display to the user",
     )
-    done: bool = False
+    done: bool = Field(default=False, description="Whether the task is complete")
 
 class UserMessage(BaseModel):
     """Wrapper for user messages"""
@@ -84,7 +84,7 @@ class AutopilotMessage(BaseModel):
     def to_plaintext(self) -> str:
         """Concise plaintext rendering for the LLM's conversation history."""
         r = self.result
-        parts = [f"[Turn {self.turn} {r.control.arrow}] {r.summary}"]
+        parts = [f"[Turn {self.turn}] Summary: {r.summary}, Control: ({r.control.throttle.value}, {r.control.steering.value})"]
         if r.scene:
             parts.append(f"Scene: {r.scene}")
         if r.done:
