@@ -18,25 +18,11 @@ class Steering(str, Enum):
     right = "right"
 
 
-# TODO: should the bitmasks be here or in the car.py interface?
 class ControlCommand(BaseModel):
     """Car control: throttle × steering. Both default to idle."""
 
     throttle: Throttle = Throttle.idle
     steering: Steering = Steering.idle
-
-    def to_bitmask(self) -> int:
-        """Convert to the Arduino bitmask protocol (matches remote_hijack.ino)."""
-        mask = 0
-        if self.throttle == Throttle.fwd:
-            mask |= 0x01  # BIT_FWD
-        elif self.throttle == Throttle.rev:
-            mask |= 0x02  # BIT_REV
-        if self.steering == Steering.left:
-            mask |= 0x04  # BIT_LEFT
-        elif self.steering == Steering.right:
-            mask |= 0x08  # BIT_RIGHT
-        return mask
 
     @property
     def arrow(self) -> str:

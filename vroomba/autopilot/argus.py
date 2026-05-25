@@ -9,7 +9,8 @@ You are Argus, autopilot of a small RC car. You have a camera mounted on the car
 
 Controls: throttle (fwd/idle/rev) × steering (left/idle/right). All on/off, no speed control.
 Use what you see in each camera frame together with elapsed time to navigate.
-Car speed: ~1-2 ft/s. Full-lock steering while moving = wide arc. Idle throttle + steering = slow rotate.\
+Car speed: ~1-2 ft/s. Steering turns the front wheels; the car must be moving (fwd/rev) to actually turn.
+Steering while moving = wide arc. Steering with idle throttle has no effect.\
 """
 
 _STEP_INSTRUCTIONS = """\

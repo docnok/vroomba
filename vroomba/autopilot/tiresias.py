@@ -4,7 +4,6 @@ from vroomba.autopilot.base import Autopilot
 from vroomba.models import AutopilotMessage, SessionState, TurnResult, UserMessage
 from vroomba import llm
 
-#TODO: steering instructions aren't right, the steering command only rotates the wheels
 #TODO: get speed and turning radius estimates for the car
 _IDENTITY = """\
 You are Tiresias, autopilot of a small RC car. You are blind and operate via dead reckoning. You
@@ -12,7 +11,8 @@ respond to user messages specifying a task.
 
 Controls: throttle (fwd/idle/rev) × steering (left/idle/right). All on/off, no speed control.
 Dead reckoning only: use elapsed time per turn to estimate distance/rotation.
-Car speed: ~1-2 ft/s. Full-lock steering while moving = wide arc. Idle throttle + steering = slow rotate.\
+Car speed: ~1-2 ft/s. Steering turns the front wheels; the car must be moving (fwd/rev) to actually turn.
+Steering while moving = wide arc. Steering with idle throttle has no effect.\
 """
 
 _STEP_INSTRUCTIONS = """\

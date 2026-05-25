@@ -77,7 +77,16 @@ class CarInterface:
 
     def set_control(self, cmd: ControlCommand) -> None:
         """Send a ControlCommand to the Arduino as bitmask."""
-        self._send_mask(cmd.to_bitmask())
+        mask = 0
+        if cmd.throttle == "fwd":
+            mask |= 0x01  # BIT_FWD
+        elif cmd.throttle == "rev":
+            mask |= 0x02  # BIT_REV
+        if cmd.steering == "left":
+            mask |= 0x04  # BIT_LEFT
+        elif cmd.steering == "right":
+            mask |= 0x08  # BIT_RIGHT
+        self._send_mask(mask)
 
     def idle(self) -> None:
         """All controls to neutral."""
@@ -102,4 +111,6 @@ class CarInterface:
             else:
                 time.sleep(0.05)
         log.warning("Timeout waiting for Arduino ready")
-        return True  # proceed anyway
+        self._ser.close()
+        self._ser = None
+        return False
