@@ -17,10 +17,18 @@
   const debugModal     = document.getElementById("debug-modal");
   const debugBody      = document.getElementById("debug-body");
   const debugClose     = document.getElementById("debug-close");
-  const pilotPickerBtn = document.getElementById("pilot-picker-btn");
-  const pilotPickerMenu= document.getElementById("pilot-picker-menu");
   const micBtn         = document.getElementById("mic-btn");
   const ttsBtn         = document.getElementById("tts-btn");
+
+  // Autopilot panel refs
+  const personaToggle  = document.getElementById("persona-toggle");
+  const personaArrow   = document.getElementById("persona-arrow");
+  const personaValue   = document.getElementById("persona-value");
+  const personaList    = document.getElementById("persona-list");
+  const cameraToggle   = document.getElementById("camera-toggle");
+  const cameraArrow    = document.getElementById("camera-arrow");
+  const cameraValue    = document.getElementById("camera-value");
+  const cameraList     = document.getElementById("camera-list");
 
   // Footer status bar refs
   const ftDotArduino   = document.getElementById("ft-dot-arduino");
@@ -61,7 +69,6 @@
 
   function speakText(text) {
     if (!ttsEnabled || !window.speechSynthesis) return;
-    // Cancel any pending/stuck utterances (workaround for browser TTS bugs)
     window.speechSynthesis.cancel();
     const utt = new SpeechSynthesisUtterance(text);
     const voices = window.speechSynthesis.getVoices();
@@ -157,7 +164,7 @@
         updateMode(data.mode);
         if (data.autopilot) {
           pilotName = data.autopilot.toUpperCase();
-          pilotPickerBtn.textContent = data.autopilot;
+          personaValue.textContent = data.autopilot;
         }
         if (data.mode !== "auto") clearSpinner();
         break;
@@ -251,7 +258,7 @@
       cameraOffline.classList.toggle("hidden", !!s.camera_available);
       updateMode(s.mode);
       if (s.autopilot_name) {
-        pilotPickerBtn.textContent = s.autopilot_name;
+        personaValue.textContent = s.autopilot_name;
         pilotName = s.autopilot_name.toUpperCase();
       }
       updateControl(s.current_control);
@@ -374,48 +381,130 @@
     headerSpinner.innerHTML = "";
   }
 
-  // ---- autopilot picker ----
+  // ---- generic expand/collapse helper ----
+
+  function toggleExpand(arrow, listEl, otherArrow, otherList) {
+    const opening = listEl.classList.contains("hidden");
+    // collapse the other one first
+    otherList.classList.add("hidden");
+    otherArrow.classList.remove("open");
+    // toggle this one
+    listEl.classList.toggle("hidden", !opening);
+    arrow.classList.toggle("open", opening);
+  }
+
+  // ---- persona (autopilot) picker ----
+
+  let currentPersona = null;
 
   async function loadAutopilots() {
     try {
       const res = await fetch("/autopilots");
       const pilotList = await res.json();
-      buildPilotMenu(pilotList);
+      buildPersonaList(pilotList);
     } catch (e) {
       console.error("Failed to load autopilots", e);
     }
   }
 
-  function buildPilotMenu(pilotList) {
-    pilotPickerMenu.innerHTML = "";
+  function buildPersonaList(pilotList) {
+    personaList.innerHTML = "";
     for (const p of pilotList) {
       const item = document.createElement("div");
-      item.className = "pilot-option";
+      item.className = "ap-item" + (currentPersona === p.name ? " selected" : "");
       item.innerHTML =
-        `<div class="pilot-option-name">${escapeHtml(p.name)}</div>` +
-        `<div class="pilot-option-desc">${escapeHtml(p.description)}</div>`;
+        `<div class="ap-item-name">${escapeHtml(p.name)}</div>` +
+        `<div class="ap-item-desc">${escapeHtml(p.description)}</div>`;
       item.addEventListener("click", async () => {
         await fetch("/autopilot", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ name: p.name.toLowerCase() }),
         });
-        pilotPickerBtn.textContent = p.name;
+        currentPersona = p.name;
+        personaValue.textContent = p.name;
         pilotName = p.name.toUpperCase();
-        pilotPickerMenu.classList.add("hidden");
+        // collapse
+        personaList.classList.add("hidden");
+        personaArrow.classList.remove("open");
+        // refresh selected
+        personaList.querySelectorAll(".ap-item").forEach(el => {
+          el.classList.toggle("selected", el.querySelector(".ap-item-name").textContent === p.name);
+        });
         fetchStatus();
       });
-      pilotPickerMenu.appendChild(item);
+      personaList.appendChild(item);
     }
   }
 
-  pilotPickerBtn.addEventListener("click", (e) => {
+  personaToggle.addEventListener("click", (e) => {
     e.stopPropagation();
-    pilotPickerMenu.classList.toggle("hidden");
+    toggleExpand(personaArrow, personaList, cameraArrow, cameraList);
   });
 
+  // ---- camera picker ----
+
+  let currentCamIndex = null;
+
+  async function loadCameraDevices() {
+    try {
+      const res = await fetch("/camera/devices");
+      const devices = await res.json();
+      buildCameraList(devices);
+    } catch (e) {
+      console.error("Failed to load camera devices", e);
+    }
+  }
+
+  function buildCameraList(devices) {
+    cameraList.innerHTML = "";
+    if (devices.length === 0) {
+      cameraValue.textContent = "none";
+      return;
+    }
+    if (currentCamIndex === null) {
+      currentCamIndex = devices[0].index;
+      cameraValue.textContent = devices[0].name;
+    }
+    for (const d of devices) {
+      const item = document.createElement("div");
+      item.className = "ap-item" + (d.index === currentCamIndex ? " selected" : "");
+      item.dataset.index = d.index;
+      item.innerHTML =
+        `<div class="ap-item-name">${escapeHtml(d.name)}</div>` +
+        `<div class="ap-item-desc">index ${d.index}</div>`;
+      item.addEventListener("click", async () => {
+        await fetch("/camera/select", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ index: d.index }),
+        });
+        currentCamIndex = d.index;
+        cameraValue.textContent = d.name;
+        // collapse
+        cameraList.classList.add("hidden");
+        cameraArrow.classList.remove("open");
+        // refresh selected
+        cameraList.querySelectorAll(".ap-item").forEach(el => {
+          el.classList.toggle("selected", Number(el.dataset.index) === currentCamIndex);
+        });
+        fetchStatus();
+      });
+      cameraList.appendChild(item);
+    }
+  }
+
+  cameraToggle.addEventListener("click", (e) => {
+    e.stopPropagation();
+    toggleExpand(cameraArrow, cameraList, personaArrow, personaList);
+  });
+
+  // collapse both on outside click
   document.addEventListener("click", () => {
-    pilotPickerMenu.classList.add("hidden");
+    personaList.classList.add("hidden");
+    personaArrow.classList.remove("open");
+    cameraList.classList.add("hidden");
+    cameraArrow.classList.remove("open");
   });
 
   // ---- pause / reset buttons ----
@@ -436,6 +525,7 @@
 
   connectWS();
   loadAutopilots();
+  loadCameraDevices();
   setInterval(fetchStatus, 5000);
 
 })();

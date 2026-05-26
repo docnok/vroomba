@@ -1,3 +1,3 @@
-- debug has duplicate fields
-- arduino status?
-- are we hearing all of the output messages?
+- autopilot as header for section
+- add option for model selection
+

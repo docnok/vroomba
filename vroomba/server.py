@@ -194,6 +194,29 @@ async def camera_status():
     }
 
 
+@app.get("/camera/devices")
+async def camera_devices():
+    loop = asyncio.get_running_loop()
+    devices = await loop.run_in_executor(None, CameraManager.enumerate)
+    return devices
+
+
+class CameraSelectRequest(BaseModel):
+    index: int
+
+
+@app.post("/camera/select")
+async def camera_select(req: CameraSelectRequest):
+    from fastapi import HTTPException
+
+    loop = asyncio.get_running_loop()
+    success = await loop.run_in_executor(None, camera.switch, req.index)
+    if not success:
+        raise HTTPException(status_code=400, detail=f"Failed to open camera index {req.index}")
+    runner.camera = camera
+    return {"status": "ok", "index": req.index}
+
+
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket):
     await ws.accept()

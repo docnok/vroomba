@@ -67,12 +67,29 @@
 
       <!-- Sidebar -->
       <aside id="sidebar">
-        <!-- Autopilot picker -->
-        <div class="sidebar-section">
-          <div class="sidebar-label">AUTOPILOT</div>
-          <div id="pilot-picker" class="pilot-picker">
-            <button id="pilot-picker-btn" class="pilot-picker-btn">—</button>
-            <div id="pilot-picker-menu" class="pilot-picker-menu hidden"></div>
+        <!-- Autopilot panel (persona + camera pickers) -->
+        <div class="panel" id="autopilot-panel">
+          <div class="panel-header"><span class="panel-header-label">AUTOPILOT</span></div>
+          <div class="ap-panel-body">
+            <!-- Persona row -->
+            <div class="ap-row" id="persona-row">
+              <span class="ap-row-label">Persona:</span>
+              <button class="ap-row-toggle" id="persona-toggle">
+                <span class="ap-arrow" id="persona-arrow">▸</span>
+                <span class="ap-row-value" id="persona-value">—</span>
+              </button>
+            </div>
+            <div class="ap-expand hidden" id="persona-list"></div>
+
+            <!-- Camera row -->
+            <div class="ap-row" id="camera-row">
+              <span class="ap-row-label">Camera:</span>
+              <button class="ap-row-toggle" id="camera-toggle">
+                <span class="ap-arrow" id="camera-arrow">▸</span>
+                <span class="ap-row-value" id="camera-value">—</span>
+              </button>
+            </div>
+            <div class="ap-expand hidden" id="camera-list"></div>
           </div>
         </div>
 

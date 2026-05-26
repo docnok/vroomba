@@ -5,17 +5,17 @@
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;700&display=swap');
 
 :root {
-  --bg:        #111318;
+  --bg:        #181b22;
   --bg-panel:  #181b22;
-  --bg-hover:  #1e222b;
-  --border:    #2a2e38;
+  --bg-hover:  #232a33;
+  --border:    #839496;
   --green:     #5af5a0;
   --green-dim: #2d6b4f;
   --amber:     #e8b45a;
   --cyan:      #6ec8db;
   --red:       #e06070;
-  --text:      #9ca3af;
-  --text-dim:  #555b66;
+  --text:      #839496;
+  --text-dim:  #687787;
   --font:      'IBM Plex Mono', 'SF Mono', 'Menlo', monospace;
 }
 
@@ -116,7 +116,7 @@ html, body {
 .panel-header-label {
   padding: 0 6px;
   background: var(--bg);
-  color: var(--text-dim);
+  color: var(--text);
   letter-spacing: 1px;
   white-space: nowrap;
 }
@@ -191,6 +191,7 @@ html, body {
   padding: 0.25em 1ch;
   gap: 1ch;
   flex-shrink: 0;
+  /* margin-bottom: 0; */
 }
 
 .prompt-char {
@@ -254,11 +255,12 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.25em 1ch;
-  border: 1px solid var(--border);
-  background: var(--bg-panel);
+  padding: 0 1ch;
+  /* border: 1px solid var(--border);
+  background: var(--bg-panel); */
   flex-shrink: 0;
   gap: 1ch;
+  margin-top: -0.5em;
 }
 
 .footer-left, .footer-right {
@@ -315,18 +317,99 @@ html, body {
   color: var(--text);
 }
 
-/* ---- sidebar: autopilot picker section ---- */
+/* ---- sidebar: autopilot panel (persona + camera pickers) ---- */
 
-.sidebar-section {
-  padding: 0.5em 1ch;
-  border: 1px solid var(--border);
-  background: var(--bg-panel);
+#autopilot-panel {
+  flex-shrink: 0;
 }
 
-.sidebar-label {
+.ap-panel-body {
+  padding: 0.5em 1ch;
+}
+
+/* Label + current-value row */
+.ap-row {
+  display: flex;
+  align-items: center;
+  gap: 1ch;
+  padding: 2px 0;
+}
+
+.ap-row-label {
   color: var(--text-dim);
-  letter-spacing: 1px;
-  margin-bottom: 4px;
+  white-space: nowrap;
+}
+
+.ap-row-toggle {
+  background: none;
+  border: none;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  transition: color 0.15s;
+}
+
+.ap-row-toggle:hover {
+  color: var(--green);
+}
+
+.ap-arrow {
+  color: var(--text-dim);
+  font-size: 11px;
+  transition: transform 0.15s;
+  display: inline-block;
+}
+
+.ap-arrow.open {
+  transform: rotate(90deg);
+}
+
+.ap-row-value {
+  color: var(--green);
+}
+
+/* Expandable list below a row */
+.ap-expand {
+  padding-left: 2ch;
+  overflow: hidden;
+}
+
+.ap-expand.hidden {
+  display: none;
+}
+
+.ap-item {
+  padding: 2px 1ch;
+  cursor: pointer;
+  border-left: 2px solid transparent;
+  transition: background 0.1s, border-color 0.15s;
+}
+
+.ap-item:hover {
+  background: var(--bg-hover);
+  border-left-color: var(--green-dim);
+}
+
+.ap-item.selected {
+  border-left-color: var(--green);
+}
+
+.ap-item-name {
+  color: var(--text);
+}
+
+.ap-item.selected .ap-item-name {
+  color: var(--green);
+}
+
+.ap-item-desc {
+  color: var(--text-dim);
+  font-size: 11px;
 }
 
 /* ---- pause / reset buttons ---- */
@@ -417,71 +500,6 @@ html, body {
 .dot-bright { color: var(--green); }
 .dot-mid    { color: var(--green-dim); }
 .dot-dim    { color: var(--border); }
-
-/* ---- autopilot picker ---- */
-
-.pilot-picker {
-  position: relative;
-}
-
-.pilot-picker-btn {
-  background: none;
-  border: 1px solid var(--border);
-  color: var(--text);
-  font-family: var(--font);
-  font-size: 13px;
-  padding: 2px 8px;
-  cursor: pointer;
-  text-align: left;
-  min-width: 80px;
-  transition: all 0.15s;
-}
-
-.pilot-picker-btn:hover {
-  border-color: var(--text-dim);
-  color: var(--green);
-}
-
-.pilot-picker-menu {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 4px);
-  background: var(--bg-panel);
-  border: 1px solid var(--border);
-  min-width: 200px;
-  z-index: 100;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
-}
-
-.pilot-picker-menu.hidden { display: none; }
-
-.pilot-option {
-  padding: 0.25em 1ch;
-  cursor: pointer;
-  border-bottom: 1px solid var(--border);
-  transition: background 0.1s;
-}
-
-.pilot-option:last-child { border-bottom: none; }
-
-.pilot-option:hover {
-  background: var(--bg-hover);
-}
-
-.pilot-option.selected {
-  border-left: 2px solid var(--green);
-}
-
-.pilot-option-name {
-  color: var(--green);
-  font-weight: 700;
-}
-
-.pilot-option-desc {
-  color: var(--text-dim);
-  font-size: 11px;
-  margin-top: 2px;
-}
 
 /* ---- turns ---- */
 

@@ -1,9 +1,13 @@
 """Camera capture manager — background-thread frame grabbing via OpenCV."""
 
 import base64
+import json as _json
 import logging
+import platform
+import subprocess
 import threading
 import time
+from pathlib import Path
 
 import cv2
 
@@ -15,6 +19,7 @@ log = logging.getLogger(__name__)
 class CameraManager:
     """Grabs frames from a webcam in a background thread, serves latest JPEG."""
 
+    #TODO: what happens when a camera isn't plugged in? seems like we sometimes get the expected error (resulting in "no signal" in the UI), but other times we get a frame with a gear in it, suggesting some sort of predefined input. How to tell the difference when no camera is available?
     def __init__(
         self,
         index: int = settings.camera_index,
@@ -117,3 +122,57 @@ class CameraManager:
                     self._frame_jpeg = buf.tobytes()
 
             time.sleep(interval)
+
+    # -- device enumeration ----------------------------------------------------
+
+    @staticmethod
+    def enumerate(max_index: int = 8) -> list[dict]:
+        """Probe indices 0‥max_index-1 and return [{index, name}] for working cameras."""
+        valid: list[int] = []
+        for i in range(max_index):
+            cap = cv2.VideoCapture(i)
+            opened = cap.isOpened()
+            cap.release()
+            if opened:
+                valid.append(i)
+
+        names = CameraManager._get_device_names(len(valid))
+        return [
+            {"index": idx, "name": names.get(pos, f"Camera {idx}")}
+            for pos, idx in enumerate(valid)
+        ]
+
+    @staticmethod
+    def _get_device_names(count: int) -> dict[int, str]:
+        """Return position→name mapping using platform APIs (best-effort)."""
+        names: dict[int, str] = {}
+        try:
+            system = platform.system()
+            if system == "Darwin":
+                raw = subprocess.check_output(
+                    ["system_profiler", "SPCameraDataType", "-json"],
+                    timeout=5,
+                    stderr=subprocess.DEVNULL,
+                )
+                data = _json.loads(raw)
+                for pos, cam in enumerate(data.get("SPCameraDataType", [])):
+                    names[pos] = cam.get("_name", f"Camera {pos}")
+            elif system == "Linux":
+                for pos, dev_path in enumerate(
+                    sorted(Path("/sys/class/video4linux").glob("video*"))
+                ):
+                    name_file = dev_path / "name"
+                    if name_file.exists():
+                        names[pos] = name_file.read_text().strip()
+        except Exception:
+            pass
+        return names
+
+    # -- live switching --------------------------------------------------------
+
+    def switch(self, index: int) -> bool:
+        """Stop the current capture and restart on *index*. Returns True on success."""
+        log.info("Switching camera to index %d", index)
+        self.stop()
+        self._index = index
+        return self.start()
