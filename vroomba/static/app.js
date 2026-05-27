@@ -165,6 +165,8 @@
         if (data.autopilot) {
           pilotName = data.autopilot.toUpperCase();
           personaValue.textContent = data.autopilot;
+          currentPersona = data.autopilot;
+          refreshPersonaHighlight();
         }
         if (data.mode !== "auto") clearSpinner();
         break;
@@ -262,6 +264,8 @@
       if (s.autopilot_name) {
         personaValue.textContent = s.autopilot_name;
         pilotName = s.autopilot_name.toUpperCase();
+        currentPersona = s.autopilot_name;
+        refreshPersonaHighlight();
       }
       updateControl(s.current_control);
     } catch (e) {
@@ -398,6 +402,12 @@
   // ---- persona (autopilot) picker ----
 
   let currentPersona = null;
+
+  function refreshPersonaHighlight() {
+    personaList.querySelectorAll(".ap-item").forEach(el => {
+      el.classList.toggle("selected", el.querySelector(".ap-item-name").textContent === currentPersona);
+    });
+  }
 
   async function loadAutopilots() {
     try {

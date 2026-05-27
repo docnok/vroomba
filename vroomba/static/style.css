@@ -355,7 +355,7 @@ html, body {
 }
 
 .ap-row-toggle:hover {
-  color: var(--green);
+  color: var(--cyan);
 }
 
 .ap-arrow {
@@ -370,7 +370,7 @@ html, body {
 }
 
 .ap-row-value {
-  color: var(--green);
+  font-weight: bolder;
 }
 
 /* Expandable list below a row */
@@ -392,11 +392,11 @@ html, body {
 
 .ap-item:hover {
   background: var(--bg-hover);
-  border-left-color: var(--green-dim);
+  border-left-color: var(--cyan);
 }
 
 .ap-item.selected {
-  border-left-color: var(--green);
+  border-left-color: var(--cyan);
 }
 
 .ap-item-name {
@@ -404,7 +404,7 @@ html, body {
 }
 
 .ap-item.selected .ap-item-name {
-  color: var(--green);
+  color: var(--cyan);
 }
 
 .ap-item-desc {
