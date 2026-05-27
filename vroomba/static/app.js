@@ -215,11 +215,13 @@
     const card = document.createElement("div");
     card.className = "turn-card";
     const arrow = controlArrow(data.control);
+    const dur = data.duration || "normal";
     const ts = timeNow();
     card.innerHTML =
       `<div class="turn-card-header">` +
         `<span class="turn-num">#${data.turn_number}</span>` +
         `<span class="turn-arrow">${arrow}</span>` +
+        `<span class="turn-duration dur-${dur}">${dur}</span>` +
         `<span class="turn-elapsed">${ts} · +${Number(data.elapsed_seconds).toFixed(1)}s</span>` +
       `</div>` +
       `<div class="turn-summary">${escapeHtml(data.summary)}</div>`;

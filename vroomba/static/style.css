@@ -563,6 +563,17 @@ html, body {
 .turn-arrow   { color: var(--green); }
 .turn-elapsed { color: var(--text-dim); font-size: 11px; }
 
+.turn-duration {
+  font-size: 10px;
+  padding: 0 4px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.dur-cautious { color: var(--amber); }
+.dur-normal   { color: var(--text-dim); }
+.dur-full     { color: var(--green); }
+
 .turn-summary {
   color: var(--text-dim);
   overflow: hidden;

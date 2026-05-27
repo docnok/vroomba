@@ -18,6 +18,20 @@ class Steering(str, Enum):
     right = "right"
 
 
+class Duration(str, Enum):
+    """How long the control holds before auto-idling. The LLM picks this each turn."""
+    cautious = "cautious"  # 0.5s — inch and look
+    normal = "normal"      # 1.0s — balanced
+    full = "full"          # unlimited — hold until next turn
+
+
+DURATION_SECONDS: dict[Duration, float | None] = {
+    Duration.cautious: 0.5,
+    Duration.normal: 1.0,
+    Duration.full: None,  # no cap
+}
+
+
 class ControlCommand(BaseModel):
     """Car control: throttle × steering. Both default to idle."""
 
@@ -50,6 +64,10 @@ class TurnResult(BaseModel):
         description="Description of what the camera sees (vision autopilots only)",
     )
     control: ControlCommand = Field(description="Control command for this turn")
+    duration: Duration = Field(
+        default=Duration.normal,
+        description="How long to hold control: cautious (0.25s), normal (0.5s), or full (until next turn)",
+    )
     msg: str | None = Field(
         default=None,
         description="Optional message to display to the user",
@@ -70,7 +88,7 @@ class AutopilotMessage(BaseModel):
     def to_plaintext(self) -> str:
         """Concise plaintext rendering for the LLM's conversation history."""
         r = self.result
-        parts = [f"[Turn {self.turn}] Summary: {r.summary}, Control: ({r.control.throttle.value}, {r.control.steering.value})"]
+        parts = [f"[Turn {self.turn}] Summary: {r.summary}, Control: ({r.control.throttle.value}, {r.control.steering.value}), Duration: {r.duration.value}"]
         if r.scene:
             parts.append(f"Scene: {r.scene}")
         if r.done:

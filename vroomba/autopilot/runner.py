@@ -10,6 +10,7 @@ from vroomba.camera import CameraManager
 from vroomba.car import CarInterface
 from vroomba.config import settings
 from vroomba.models import (
+    DURATION_SECONDS,
     AutopilotMessage,
     ControlCommand,
     Mode,
@@ -163,11 +164,12 @@ class AutopilotRunner:
             self.current_control = result.control
             self.car.set_control(result.control)
 
-            # Start keepalive (re-send control at SEND_HZ)
+            # Start keepalive (re-send control at SEND_HZ, respecting duration cap)
             if self._keepalive_task and not self._keepalive_task.done():
                 self._keepalive_task.cancel()
+            max_seconds = DURATION_SECONDS[result.duration]
             self._keepalive_task = asyncio.create_task(
-                self._keepalive(result.control)
+                self._keepalive(result.control, max_seconds=max_seconds)
             )
 
             # Store structured autopilot message in session history
@@ -180,6 +182,7 @@ class AutopilotRunner:
                 "turn_number": turn_num,
                 "elapsed_seconds": round(elapsed, 2),
                 "control": result.control.model_dump(),
+                "duration": result.duration.value,
                 "summary": result.summary,
                 "scene": result.scene,
                 "msg": result.msg,
@@ -206,12 +209,23 @@ class AutopilotRunner:
                 await self._emit("status", {"mode": self.mode.value})
                 break
 
-    async def _keepalive(self, cmd: ControlCommand) -> None:
-        """Re-send control command at SEND_HZ to keep Arduino connection alive."""
+    async def _keepalive(self, cmd: ControlCommand, max_seconds: float | None = None) -> None:
+        """Re-send control at SEND_HZ. After max_seconds, idle the car."""
         interval = 1.0 / settings.turn_send_hz
+        elapsed = 0.0
         try:
             while True:
                 await asyncio.sleep(interval)
-                self.car.set_control(cmd)
+                elapsed += interval
+                if max_seconds is not None and elapsed >= max_seconds:
+                    self.car.idle()
+                    self.current_control = ControlCommand()
+                    await self._emit("control", self.current_control.model_dump())
+                    # Keep the task alive (still re-send idle) so it can be cancelled normally
+                    while True:
+                        await asyncio.sleep(interval)
+                        self.car.idle()
+                else:
+                    self.car.set_control(cmd)
         except asyncio.CancelledError:
             pass
