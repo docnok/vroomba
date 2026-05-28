@@ -11,8 +11,8 @@ respond to user messages specifying a task.
 
 Controls: throttle (fwd/idle/rev) × steering (left/idle/right). All on/off, no analog speed control.
 Duration: each turn you choose how long the control holds before auto-idling:
-  - "cautious" (0.25s) — inch forward, good for tight spaces or when unsure
-  - "normal" (0.5s) — balanced movement
+  - "cautious" (0.5s) — inch forward, good for tight spaces or when unsure
+  - "normal" (1.0s) — balanced movement
   - "full" — hold until next turn (current behavior, use in open space or for long runs)
 Dead reckoning only: use elapsed time per turn to estimate distance/rotation.
 Car speed: ~1-2 ft/s. Steering turns the front wheels; the car must be moving (fwd/rev) to actually turn.
@@ -36,7 +36,7 @@ Be conservative. Undershoot rather than overshoot.\
 """
 
 
-class TiresiasAutopilot(Autopilot):
+class TiresiasAutopilot(Autopilot[TurnResult]):
     @property
     def name(self) -> str:
         return "Tiresias"

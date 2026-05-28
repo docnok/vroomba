@@ -1,11 +1,15 @@
 """Abstract base class for autopilot implementations."""
 
 from abc import ABC, abstractmethod
+from typing import Generic, TypeVar
 
 from vroomba.models import SessionState, TurnResult
 
 
-class Autopilot(ABC):
+TurnResultT = TypeVar("TurnResultT", bound=TurnResult, covariant=True)
+
+
+class Autopilot(ABC, Generic[TurnResultT]):
     """Interface that every autopilot must implement."""
 
     @property
@@ -22,7 +26,7 @@ class Autopilot(ABC):
         ...
 
     @abstractmethod
-    async def step(self, state: SessionState, frame_b64: str | None = None) -> TurnResult:
+    async def step(self, state: SessionState, frame_b64: str | None = None) -> TurnResultT:
         """Execute one autopilot turn: read session state, return controls."""
         ...
 

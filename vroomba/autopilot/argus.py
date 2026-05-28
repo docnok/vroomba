@@ -1,7 +1,7 @@
 """Argus — the all-seeing autopilot. Uses camera frames for navigation."""
 
 from vroomba.autopilot.base import Autopilot
-from vroomba.models import AutopilotMessage, SessionState, TurnResult, UserMessage
+from vroomba.models import AutopilotMessage, SessionState, UserMessage, VisionTurnResult
 from vroomba import llm
 
 _IDENTITY = """\
@@ -28,14 +28,14 @@ Respond with JSON, e.g.: {"summary":"...","scene":"...","control":{"throttle":"f
 - summary: An assessment of the current situation and your plans about what to do next. First message after a new user message should include a detailed plan, otherwise give a brief (1-2 sentence max) assessment of your progress and next steps.
 - scene: 1-2 sentences. Describe what you see in the camera frame — obstacles, surfaces, open space, walls, objects, people. Be specific about spatial layout (left/center/right). This description is saved for future turns so you can track your environment over time.
 - control: Your control action for this turn, which will hold until the next turn. Choose from throttle (fwd/idle/rev) × steering (left/idle/right). All on/off, no speed control.
-- duration: How long the control holds: "cautious" (0.25s), "normal" (0.5s), or "full" (until next turn). Use cautious near obstacles or for precise positioning, normal for routine movement, full for long straight runs in open space.
+- duration: How long the control holds: "cautious" (0.5s), "normal" (1.0s), or "full" (until next turn). Use cautious near obstacles or for precise positioning, normal for routine movement, full for long straight runs in open space.
 - msg: Usually null message to the user, set to respond to user messages or to give periodic status updates. Always give a status update when you receive a new user message or set done=true.
 - done: True when the user task is complete or when you intend to wait for further instructions. Set control to idle/idle when done.
-Be conservative. Avoid obstacles. Prefer open space. Undershoot rather than overshoot.\
+Be conservative. Avoid obstacles. Prefer open space. If you get stuck and/or see the same frame for multiple turns, try backing up.\
 """
 
 
-class ArgusAutopilot(Autopilot):
+class ArgusAutopilot(Autopilot[VisionTurnResult]):
     @property
     def name(self) -> str:
         return "Argus"
@@ -47,9 +47,9 @@ class ArgusAutopilot(Autopilot):
     def system_prompt(self) -> str:
         return _IDENTITY
 
-    async def step(self, state: SessionState, frame_b64: str | None = None) -> TurnResult:
+    async def step(self, state: SessionState, frame_b64: str | None = None) -> VisionTurnResult:
         messages = self.build_step_messages(state, frame_b64)
-        return await llm.complete(messages)
+        return await llm.complete(messages, result_model=VisionTurnResult)
 
     def build_step_messages(self, state: SessionState, frame_b64: str | None = None) -> list[dict]:
         # Convert typed session messages to chat format

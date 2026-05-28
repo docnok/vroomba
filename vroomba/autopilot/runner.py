@@ -27,7 +27,7 @@ class AutopilotRunner:
 
     def __init__(self, car: CarInterface):
         self.car = car
-        self.autopilot: Autopilot | None = None
+        self.autopilot: Autopilot[TurnResult] | None = None
         self.camera: CameraManager | None = None
         self.state = SessionState()
         self.mode: Mode = Mode.idle
@@ -184,7 +184,7 @@ class AutopilotRunner:
                 "control": result.control.model_dump(),
                 "duration": result.duration.value,
                 "summary": result.summary,
-                "scene": result.scene,
+                "scene": getattr(result, "scene", None),
                 "msg": result.msg,
                 "done": result.done,
             }

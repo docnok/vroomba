@@ -3,7 +3,7 @@
 from datetime import datetime
 from enum import Enum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, SerializeAsAny
 
 
 class Throttle(str, Enum):
@@ -56,13 +56,9 @@ class ControlCommand(BaseModel):
 
 
 class TurnResult(BaseModel):
-    """Structured output returned by the LLM each turn."""
+    """Structured output returned by blind autopilots each turn."""
 
     summary: str = Field(description="Brief reasoning for this turn")
-    scene: str | None = Field(
-        default=None,
-        description="Description of what the camera sees (vision autopilots only)",
-    )
     control: ControlCommand = Field(description="Control command for this turn")
     duration: Duration = Field(
         default=Duration.normal,
@@ -74,6 +70,12 @@ class TurnResult(BaseModel):
     )
     done: bool = Field(default=False, description="Whether the task is complete")
 
+
+class VisionTurnResult(TurnResult):
+    """Structured output returned by vision autopilots each turn."""
+
+    scene: str = Field(description="Description of what the camera sees")
+
 class UserMessage(BaseModel):
     """Wrapper for user messages"""
     time: str = Field(description="Message timestamp")
@@ -83,14 +85,15 @@ class AutopilotMessage(BaseModel):
     """Wrapper for autopilot messages"""
     time: str = Field(description="Message timestamp")
     turn: int = Field(description="Autopilot turn number in this session")
-    result: TurnResult = Field(description="Autopilot decision this turn")
+    result: SerializeAsAny[TurnResult] = Field(description="Autopilot decision this turn")
 
     def to_plaintext(self) -> str:
         """Concise plaintext rendering for the LLM's conversation history."""
         r = self.result
         parts = [f"[Turn {self.turn}] Summary: {r.summary}, Control: ({r.control.throttle.value}, {r.control.steering.value}), Duration: {r.duration.value}"]
-        if r.scene:
-            parts.append(f"Scene: {r.scene}")
+        scene = getattr(r, "scene", None)
+        if scene:
+            parts.append(f"Scene: {scene}")
         if r.done:
             parts.append("(done)")
         return "\n".join(parts)
