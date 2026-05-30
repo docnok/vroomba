@@ -62,7 +62,7 @@ class TurnResult(BaseModel):
     control: ControlCommand = Field(description="Control command for this turn")
     duration: Duration = Field(
         default=Duration.normal,
-        description="How long to hold control: cautious (0.25s), normal (0.5s), or full (until next turn)",
+        description="How long to hold control: cautious (0.5s), normal (1.0s), or full (until next turn)",
     )
     msg: str | None = Field(
         default=None,
@@ -90,13 +90,16 @@ class AutopilotMessage(BaseModel):
     def to_plaintext(self) -> str:
         """Concise plaintext rendering for the LLM's conversation history."""
         r = self.result
-        parts = [f"[Turn {self.turn}] Summary: {r.summary}, Control: ({r.control.throttle.value}, {r.control.steering.value}), Duration: {r.duration.value}"]
+        ctrl = f"{r.control.throttle.value}/{r.control.steering.value}"
         scene = getattr(r, "scene", None)
+        parts = []
         if scene:
-            parts.append(f"Scene: {scene}")
+            parts.append(f"Saw: {scene}")
+        parts.append(f"Thought: {r.summary}")
+        parts.append(f"Did: {ctrl} ({r.duration.value})")
         if r.done:
-            parts.append("(done)")
-        return "\n".join(parts)
+            parts.append("DONE")
+        return f"[Turn {self.turn}] " + " | ".join(parts)
 
 class SessionState(BaseModel):
     """Session state: just a message list (same format the LLM consumes)."""

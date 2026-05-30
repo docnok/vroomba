@@ -43,18 +43,24 @@ html, body {
 
 #header {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  padding: 0.25em 1ch;
-  border: 1px solid var(--border);
-  background: var(--bg-panel);
+  padding: 0.5em 1ch 0;
+  text-align: center;
 }
 
-.logo {
-  color: var(--green);
-  font-weight: 700;
-  font-size: 15px;
-  letter-spacing: 3px;
+.ascii-banner {
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 13px;
+  line-height: 1.25;
+  margin: 0;
+  padding: 0;
+  white-space: pre;
+  user-select: none;
+  overflow-x: auto;
+  display: inline-block;
+  text-align: left;
 }
 
 .mode-badge {
@@ -483,19 +489,23 @@ html, body {
 
 /* ---- spinner (header dot-sweep) ---- */
 
-.header-right {
+.header-status {
   display: flex;
   align-items: center;
-  gap: 1ch;
+  justify-content: space-between;
+  padding: 0.25em 1ch 0;
+  align-self: stretch;
 }
 
 .header-spinner {
-  display: inline;
+  display: block;
   letter-spacing: 2px;
   line-height: 1;
+  align-self: flex-end;
+  height: 1.25em;
 }
 
-.header-spinner.hidden { display: none; }
+.header-spinner.hidden { visibility: hidden; }
 
 .dot-bright { color: var(--green); }
 .dot-mid    { color: var(--green-dim); }

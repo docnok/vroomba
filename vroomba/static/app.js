@@ -384,7 +384,6 @@
   function clearSpinner() {
     if (spinnerInterval) { clearInterval(spinnerInterval); spinnerInterval = null; }
     headerSpinner.classList.add("hidden");
-    headerSpinner.innerHTML = "";
   }
 
   // ---- generic expand/collapse helper ----
