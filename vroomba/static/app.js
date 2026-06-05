@@ -48,6 +48,20 @@
   let spinnerFrame = 0;
   let spinnerInterval = null;
   let spinnerDirection = 1;
+
+  // ---- camera feed helpers ----
+
+  function reloadCameraFeed() {
+    // Force the browser to re-establish the MJPEG stream connection
+    cameraFeed.src = "/camera/stream?" + Date.now();
+    cameraFeed.classList.remove("hidden");
+    cameraOffline.classList.add("hidden");
+  }
+
+  cameraFeed.addEventListener("error", () => {
+    cameraFeed.classList.add("hidden");
+    cameraOffline.classList.remove("hidden");
+  });
   const DOT_COUNT = 8;
 
   // ---- arrow map ----
@@ -134,6 +148,7 @@
     ws.onopen = () => {
       console.log("WS connected");
       fetchStatus();
+      loadAutopilots();
     };
 
     ws.onmessage = (ev) => {
@@ -260,6 +275,15 @@
       ftDotLlm.classList.toggle("ok", s.llm_available);
       ftDotCamera.classList.toggle("ok", !!s.camera_available);
       cameraOffline.classList.toggle("hidden", !!s.camera_available);
+      cameraFeed.classList.toggle("hidden", !s.camera_available);
+      // Start stream if camera just became available and img has no src
+      if (s.camera_available && !cameraFeed.src.includes("/camera/stream")) {
+        reloadCameraFeed();
+      }
+      if (s.camera_source_id) {
+        currentCamSourceId = s.camera_source_id;
+        refreshCameraHighlight();
+      }
       updateMode(s.mode);
       if (s.autopilot_name) {
         personaValue.textContent = s.autopilot_name;
@@ -455,7 +479,13 @@
 
   // ---- camera picker ----
 
-  let currentCamIndex = null;
+  let currentCamSourceId = null;
+
+  function refreshCameraHighlight() {
+    cameraList.querySelectorAll(".ap-item").forEach(el => {
+      el.classList.toggle("selected", el.dataset.sourceId === currentCamSourceId);
+    });
+  }
 
   async function loadCameraDevices() {
     try {
@@ -473,41 +503,46 @@
       cameraValue.textContent = "none";
       return;
     }
-    if (currentCamIndex === null) {
-      currentCamIndex = devices[0].index;
+    const currentDevice = devices.find(d => d.id === currentCamSourceId);
+    if (currentDevice) {
+      cameraValue.textContent = currentDevice.name;
+    } else {
+      currentCamSourceId = devices[0].id;
       cameraValue.textContent = devices[0].name;
     }
     for (const d of devices) {
       const item = document.createElement("div");
-      item.className = "ap-item" + (d.index === currentCamIndex ? " selected" : "");
-      item.dataset.index = d.index;
+      item.className = "ap-item" + (d.id === currentCamSourceId ? " selected" : "");
+      item.dataset.sourceId = d.id;
       item.innerHTML =
         `<div class="ap-item-name">${escapeHtml(d.name)}</div>` +
-        `<div class="ap-item-desc">index ${d.index}</div>`;
+        `<div class="ap-item-desc">${escapeHtml(d.description || "")}</div>`;
       item.addEventListener("click", async () => {
         await fetch("/camera/select", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ index: d.index }),
+          body: JSON.stringify({ source_id: d.id }),
         });
-        currentCamIndex = d.index;
+        currentCamSourceId = d.id;
         cameraValue.textContent = d.name;
+        // reload the stream connection
+        reloadCameraFeed();
         // collapse
         cameraList.classList.add("hidden");
         cameraArrow.classList.remove("open");
-        // refresh selected
-        cameraList.querySelectorAll(".ap-item").forEach(el => {
-          el.classList.toggle("selected", Number(el.dataset.index) === currentCamIndex);
-        });
+        refreshCameraHighlight();
         fetchStatus();
       });
       cameraList.appendChild(item);
     }
+    refreshCameraHighlight();
   }
 
   cameraToggle.addEventListener("click", (e) => {
     e.stopPropagation();
     toggleExpand(cameraArrow, cameraList, personaArrow, personaList);
+    // lazy-load device list on first open
+    if (!cameraList.hasChildNodes()) loadCameraDevices();
   });
 
   // collapse both on outside click
@@ -535,8 +570,6 @@
   // ---- init ----
 
   connectWS();
-  loadAutopilots();
-  loadCameraDevices();
   setInterval(fetchStatus, 5000);
 
 })();

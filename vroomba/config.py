@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     camera_height: int = 480
     camera_fps: int = 15
     camera_jpeg_quality: int = 70
+    camera_mjpeg_url: str = "http://192.168.4.1:81/stream"
+    camera_mjpeg_name: str = "ESP32-CAM"
+    camera_connect_timeout_seconds: float = 0.6
 
     # Autopilot
     turn_timeout_seconds: float = 30.0

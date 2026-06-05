@@ -125,6 +125,7 @@ async def get_status():
         "arduino_connected": car.is_connected,
         "llm_available": await llm_mod.is_available(),
         "camera_available": camera.is_running,
+        "camera_source_id": camera.source_id,
         "mode": runner.mode.value,
         "autopilot_name": runner.autopilot.name if runner.autopilot else None,
         "current_control": runner.current_control.model_dump(),
@@ -170,14 +171,24 @@ async def camera_snapshot():
 
 @app.get("/camera/stream")
 async def camera_stream():
+    if not camera.is_running:
+        return Response(status_code=503, content="Camera not running")
+
     async def generate():
+        idle_ticks = 0
+        max_idle = int(settings.camera_fps * 5)  # give up after ~5 s with no frames
         while True:
             frame = camera.get_frame()
             if frame is not None:
+                idle_ticks = 0
                 yield (
                     b"--frame\r\n"
                     b"Content-Type: image/jpeg\r\n\r\n" + frame + b"\r\n"
                 )
+            else:
+                idle_ticks += 1
+                if idle_ticks >= max_idle:
+                    return
             await asyncio.sleep(1.0 / settings.camera_fps)
 
     return StreamingResponse(
@@ -197,24 +208,29 @@ async def camera_status():
 @app.get("/camera/devices")
 async def camera_devices():
     loop = asyncio.get_running_loop()
-    devices = await loop.run_in_executor(None, CameraManager.enumerate)
+    devices = await loop.run_in_executor(None, CameraManager.list_sources)
     return devices
 
 
 class CameraSelectRequest(BaseModel):
-    index: int
+    source_id: str
 
 
 @app.post("/camera/select")
 async def camera_select(req: CameraSelectRequest):
     from fastapi import HTTPException
 
+    try:
+        source = CameraManager.source_from_id(req.source_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
     loop = asyncio.get_running_loop()
-    success = await loop.run_in_executor(None, camera.switch, req.index)
+    success = await loop.run_in_executor(None, camera.switch, source)
     if not success:
-        raise HTTPException(status_code=400, detail=f"Failed to open camera index {req.index}")
+        raise HTTPException(status_code=400, detail=f"Failed to open camera source {req.source_id}")
     runner.camera = camera
-    return {"status": "ok", "index": req.index}
+    return {"status": "ok", "source_id": req.source_id}
 
 
 @app.websocket("/ws")
