@@ -1,11 +1,11 @@
-"""Cyclops — the all-seeing autopilot. Uses camera frames for navigation."""
+"""Polyphemus — the one-eyed, simple-minded autopilot. Uses camera frames for navigation."""
 
 from vroomba.autopilot.base import Autopilot
 from vroomba.models import AutopilotMessage, SessionState, UserMessage, VisionTurnResult
 from vroomba import llm
 
 _IDENTITY = """\
-You are Cyclops, autopilot of a small RC car with a forward-facing camera.
+You are Polyphemus, autopilot of a small RC car with a forward-facing camera.
 
 Controls: throttle (fwd/idle/rev) × steering (left/idle/right). All binary, no analog.
 Duration per turn: "cautious" (0.5s), "normal" (1.0s), or "full" (hold until next turn).
@@ -22,7 +22,7 @@ Fields:
 - summary: Your assessment. First turn after new user message: full plan with concrete "done" criteria. Later turns: 1-3 sentence progress check referencing your plan. Always note what you've learned about the environment (dead ends, landmarks, open paths). If you can't do the task, set done=true and explain in msg.
 - control: throttle × steering for this turn.
 - duration: cautious near obstacles or when unsure, normal for routine, full for open straights.
-- msg: Always set when responding to user messages, if you get stuck, if you find something interesting, or when done=true. Otherwise usually null.
+- msg: Always give a status update when responding to user messages, if you get stuck, if you find something interesting, or when done=true. Otherwise usually null.
 - done: true when task complete or awaiting instructions. Set idle/idle control.
 
 PLANNING: Make a plan on your first turn with specific done-criteria; when will you set done=True?. Each later turn, restate your current sub-goal and check progress. If a sub-goal isn't working after ~5 turns, abandon it and try something else. Use your scene history to track what's around you and avoid revisiting the same area.
@@ -44,10 +44,10 @@ GENERAL: Be conservative near obstacles. Prefer open space. Start turns early (n
 """
 
 
-class CyclopsAutopilot(Autopilot[VisionTurnResult]):
+class PolyphemusAutopilot(Autopilot[VisionTurnResult]):
     @property
     def name(self) -> str:
-        return "Cyclops"
+        return "Polyphemus"
 
     @property
     def description(self) -> str:

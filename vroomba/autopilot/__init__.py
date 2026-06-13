@@ -1,11 +1,11 @@
 """Autopilot registry."""
 
-from vroomba.autopilot.cyclops import CyclopsAutopilot
+from vroomba.autopilot.polyphemus import PolyphemusAutopilot
 from vroomba.autopilot.tiresias import TiresiasAutopilot
 
 AUTOPILOTS: dict[str, type] = {
     "tiresias": TiresiasAutopilot,
-    "cyclops": CyclopsAutopilot,
+    "polyphemus": PolyphemusAutopilot,
 }
 
 

@@ -59,7 +59,7 @@ async def lifespan(app: FastAPI):
             log.warning("Camera not available — running without video")
 
     # Default autopilot
-    pilot = get_autopilot("cyclops")
+    pilot = get_autopilot("polyphemus")
     runner.set_autopilot(pilot)
 
     # Try to connect to Arduino (non-fatal if not plugged in)

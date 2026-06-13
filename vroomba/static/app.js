@@ -80,23 +80,63 @@
   // ---- TTS ----
 
   let ttsEnabled = true;
+  let ttsResumeTimer = null;
+  let ttsVoice = null;
+
+  // Preload voice selection (voices may load async)
+  function pickVoice() {
+    const voices = window.speechSynthesis.getVoices();
+    if (!voices.length) return;
+    ttsVoice = voices.find(v =>
+      /samantha|zoe|neural|enhanced/i.test(v.name) && /en/i.test(v.lang)
+    ) || voices.find(v => /en/i.test(v.lang) && v.localService) || voices[0];
+  }
+
+  // Chrome freezes speechSynthesis after ~15s of continuous speech.
+  // A periodic resume() call prevents the engine from stalling.
+  function startResumeTimer() {
+    stopResumeTimer();
+    ttsResumeTimer = setInterval(() => {
+      if (window.speechSynthesis.speaking) {
+        window.speechSynthesis.pause();
+        window.speechSynthesis.resume();
+      }
+    }, 5000);
+  }
+
+  function stopResumeTimer() {
+    if (ttsResumeTimer) { clearInterval(ttsResumeTimer); ttsResumeTimer = null; }
+  }
 
   function speakText(text) {
     if (!ttsEnabled || !window.speechSynthesis) return;
+
+    // Hard reset: cancel + small delay to let Chrome's internal state settle
     window.speechSynthesis.cancel();
-    const utt = new SpeechSynthesisUtterance(text);
-    const voices = window.speechSynthesis.getVoices();
-    const preferred = voices.find(v =>
-      /samantha|zoe|neural|enhanced/i.test(v.name) && /en/i.test(v.lang)
-    ) || voices.find(v => /en/i.test(v.lang) && v.localService);
-    if (preferred) utt.voice = preferred;
-    utt.rate = 1.05;
-    utt.onerror = (e) => console.warn("TTS error:", e.error);
-    window.speechSynthesis.speak(utt);
+    stopResumeTimer();
+
+    // Use a small delay after cancel to avoid the cancel/speak race condition
+    setTimeout(() => {
+      if (!ttsVoice) pickVoice();
+
+      const utt = new SpeechSynthesisUtterance(text);
+      if (ttsVoice) utt.voice = ttsVoice;
+      utt.rate = 1.05;
+      utt.onerror = (e) => {
+        console.warn("TTS error:", e.error);
+        window.speechSynthesis.cancel();
+        stopResumeTimer();
+      };
+      utt.onend = () => stopResumeTimer();
+      window.speechSynthesis.speak(utt);
+
+      startResumeTimer();
+    }, 50);
   }
 
   if (window.speechSynthesis) {
-    window.speechSynthesis.onvoiceschanged = () => {};
+    window.speechSynthesis.onvoiceschanged = () => pickVoice();
+    pickVoice(); // try immediately (Firefox has voices ready synchronously)
   } else {
     ttsBtn.classList.add("hidden");
   }
@@ -104,7 +144,10 @@
   ttsBtn.addEventListener("click", () => {
     ttsEnabled = !ttsEnabled;
     ttsBtn.classList.toggle("tts-on", ttsEnabled);
-    if (!ttsEnabled) window.speechSynthesis && window.speechSynthesis.cancel();
+    if (!ttsEnabled && window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+      stopResumeTimer();
+    }
   });
 
   // ---- STT ----
