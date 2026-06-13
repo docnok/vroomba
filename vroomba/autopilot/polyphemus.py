@@ -51,7 +51,7 @@ class PolyphemusAutopilot(Autopilot[VisionTurnResult]):
 
     @property
     def description(self) -> str:
-        return "Vision autopilot. Uses camera frames to see and navigate"
+        return "Has one eye. Kinda stupid."
 
     def system_prompt(self) -> str:
         return _IDENTITY

@@ -43,7 +43,7 @@ class TiresiasAutopilot(Autopilot[TurnResult]):
 
     @property
     def description(self) -> str:
-        return "Blind autopilot. Dead reckoning only, no sensors"
+        return "Blind. Prophetic?"
 
     def system_prompt(self) -> str:
         return _IDENTITY
