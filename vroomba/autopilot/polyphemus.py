@@ -1,7 +1,13 @@
 """Polyphemus — the one-eyed, simple-minded autopilot. Uses camera frames for navigation."""
 
 from vroomba.autopilot.base import Autopilot
-from vroomba.models import AutopilotMessage, SessionState, UserMessage, VisionTurnResult
+from vroomba.models import (
+    AutopilotMessage,
+    SessionState,
+    UserMessage,
+    VisionSessionState,
+    VisionTurnResult,
+)
 from vroomba import llm
 
 _IDENTITY = """\
@@ -18,7 +24,7 @@ Each turn you get your timestamped action history and a current camera frame. Re
 {"summary":"...","scene":"...","control":{"throttle":"fwd","steering":"idle"},"duration":"normal","msg":null,"done":false}
 
 Fields:
-- scene: 1-2 sentences. What you see: obstacles, surfaces, open space, walls, objects, people. Note spatial layout (left/center/right, near/far). These are your memory — write them so you can reconstruct your surroundings from past scenes.
+- scene: 1-2 sentences. What you see: obstacles, surfaces, open space, walls, objects, people. Note spatial layout (left/center/right, near/far). These are your memory — write them so you can reconstruct your surroundings from past scenes. NOTE: due to inference latency, the camera frame you see is taken at the start of the previous control command, not at the time you respond. Use your scene history and the most recent throttle/steering commands to estimate the current scene, but be aware of this timing issue when interpreting scenes.
 - summary: Your assessment. First turn after new user message: full plan with concrete "done" criteria. Later turns: 1-3 sentence progress check referencing your plan. Always note what you've learned about the environment (dead ends, landmarks, open paths). If you can't do the task, set done=true and explain in msg.
 - control: throttle × steering for this turn.
 - duration: cautious near obstacles or when unsure, normal for routine, full for open straights.
@@ -51,7 +57,7 @@ class PolyphemusAutopilot(Autopilot[VisionTurnResult]):
 
     @property
     def description(self) -> str:
-        return "Has one eye. Kinda stupid."
+        return "One eye. Kinda stupid."
 
     def system_prompt(self) -> str:
         return _IDENTITY
@@ -61,15 +67,27 @@ class PolyphemusAutopilot(Autopilot[VisionTurnResult]):
         return await llm.complete(messages, result_model=VisionTurnResult)
 
     def build_step_messages(self, state: SessionState, frame_b64: str | None = None) -> list[dict]:
-        # Convert typed session messages to chat format
+        # Convert typed session messages to chat format, including past frames
         history = []
+        frames = state.frames_b64 if isinstance(state, VisionSessionState) else []
+        frame_idx = 0
         for m in state.messages:
             if isinstance(m, UserMessage):
                 history.append({"role": "user", "content": f"({m.time}) {m.content}"})
             elif isinstance(m, AutopilotMessage):
+                # Include the stored frame from this past turn
+                past_frame = frames[frame_idx] if frame_idx < len(frames) else None
+                if past_frame is not None:
+                    history.append({"role": "user", "content": [
+                        {"type": "text", "text": f"Turn {m.turn}. Camera frame:"},
+                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{past_frame}"}},
+                    ]})
+                else:
+                    history.append({"role": "user", "content": f"Turn {m.turn}. [no camera frame available]"})
                 history.append({"role": "assistant", "content": f"({m.time}) {m.to_plaintext()}"})
+                frame_idx += 1
 
-        turn_num = sum(1 for m in state.messages if isinstance(m, AutopilotMessage)) + 1
+        turn_num = frame_idx + 1
 
         # Build the current turn's user message with optional image
         if frame_b64 is not None:

@@ -17,6 +17,7 @@ from vroomba.models import (
     SessionState,
     TurnResult,
     UserMessage,
+    VisionSessionState,
 )
 
 log = logging.getLogger(__name__)
@@ -29,7 +30,7 @@ class AutopilotRunner:
         self.car = car
         self.autopilot: Autopilot[TurnResult] | None = None
         self.camera: CameraManager | None = None
-        self.state = SessionState()
+        self.state: SessionState = VisionSessionState()
         self.mode: Mode = Mode.idle
         self.current_control = ControlCommand()
 
@@ -90,7 +91,7 @@ class AutopilotRunner:
     async def reset(self) -> None:
         """Stop the loop and clear all session history."""
         await self.pause()
-        self.state = SessionState()
+        self.state = VisionSessionState()
         await self._emit("reset", {})
 
     async def manual_control(self, cmd: ControlCommand) -> None:
@@ -176,6 +177,8 @@ class AutopilotRunner:
             self.state.messages.append(
                 AutopilotMessage(time=time.strftime("%H:%M:%S"), turn=turn_num, result=result)
             )
+            if isinstance(self.state, VisionSessionState):
+                self.state.frames_b64.append(frame_b64)
 
             # Emit turn event for the UI
             turn_data = {

@@ -108,6 +108,15 @@ class SessionState(BaseModel):
     active: bool = True
 
 
+class VisionSessionState(SessionState):
+    """Session state for vision autopilots, including per-turn camera frames."""
+
+    frames_b64: list[str | None] = Field(
+        default_factory=list,
+        description="Per-turn camera frames aligned with autopilot turns",
+    )
+
+
 class Mode(str, Enum):
     idle = "idle"
     auto = "auto"
