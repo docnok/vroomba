@@ -4,7 +4,7 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    model_config = {"env_prefix": "VROOMBA_", "env_file": ".env"}
+    model_config = {"env_prefix": "VROOMBA_", "env_file": ".env", "extra": "ignore"}
 
     # Serial / Arduino
     serial_port: str = "auto"
@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     camera_connect_timeout_seconds: float = 0.6
 
     # Autopilot
-    turn_timeout_seconds: float = 30.0
+    turn_timeout_seconds: float = 45.0
     turn_send_hz: int = 20
 
     # Server

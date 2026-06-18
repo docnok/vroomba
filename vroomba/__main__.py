@@ -4,6 +4,9 @@ import logging
 import webbrowser
 
 import uvicorn
+from dotenv import load_dotenv
+
+load_dotenv()
 
 from vroomba.config import settings
 

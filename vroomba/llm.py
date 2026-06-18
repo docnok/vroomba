@@ -4,7 +4,7 @@ import json
 import logging
 from typing import TypeVar
 
-from openai import AsyncOpenAI
+from langfuse.openai import AsyncOpenAI
 from ollama import AsyncClient
 
 from vroomba.config import settings
