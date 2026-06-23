@@ -8,14 +8,14 @@
   --bg:        #181b22;
   --bg-panel:  #181b22;
   --bg-hover:  #232a33;
-  --border:    #839496;
+  --border:    #fcfcfb;
   --green:     #5af5a0;
   --green-dim: #2d6b4f;
   --amber:     #e8b45a;
   --cyan:      #6ec8db;
   --red:       #e06070;
-  --text:      #839496;
-  --text-dim:  #687787;
+  --text:      #fcfcfb;
+  --text-dim:  #908e90;
   --font:      'IBM Plex Mono', 'SF Mono', 'Menlo', monospace;
 }
 
@@ -141,8 +141,8 @@ html, body {
 
 .scroll-area::-webkit-scrollbar { width: 3px; }
 .scroll-area::-webkit-scrollbar-track { background: var(--bg); }
-.scroll-area::-webkit-scrollbar-thumb { background: var(--border); }
-.scroll-area::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+.scroll-area::-webkit-scrollbar-thumb { background: var(--text-dim); }
+.scroll-area::-webkit-scrollbar-thumb:hover { background: var(--text); }
 
 #messages {
   flex: 1 1 0;
@@ -183,7 +183,7 @@ html, body {
   color: var(--text);
 }
 
-.msg-user .msg-body     { color: #d4c49a; }
+.msg-user .msg-body     { color: #f0d89a; }
 .msg-assistant .msg-body { color: var(--text); }
 .msg-system .msg-body    { color: var(--text-dim); }
 
@@ -276,7 +276,7 @@ html, body {
 }
 
 .footer-sep {
-  color: var(--border);
+  color: var(--text-dim);
   margin: 0 4px;
 }
 
@@ -320,7 +320,11 @@ html, body {
 }
 
 .footer-hint-key {
-  color: var(--text);
+  background: var(--text-dim);
+  color: var(--bg);
+  padding: 1px 5px;
+  font-size: 10px;
+  letter-spacing: 0.5px;
 }
 
 /* ---- sidebar: autopilot panel (persona + camera pickers) ---- */
@@ -381,7 +385,7 @@ html, body {
 
 /* Expandable list below a row */
 .ap-expand {
-  padding-left: 2ch;
+  padding-left: 1ch;
   overflow: hidden;
 }
 
@@ -390,27 +394,31 @@ html, body {
 }
 
 .ap-item {
-  padding: 2px 1ch;
+  padding: 1px 1ch;
   cursor: pointer;
-  border-left: 2px solid transparent;
-  transition: background 0.1s, border-color 0.15s;
+  transition: background 0.1s, color 0.1s;
 }
 
 .ap-item:hover {
-  background: var(--bg-hover);
-  border-left-color: var(--cyan);
+  background: var(--text-dim);
+}
+
+.ap-item:hover .ap-item-name,
+.ap-item:hover .ap-item-desc {
+  color: var(--bg);
 }
 
 .ap-item.selected {
-  border-left-color: var(--cyan);
+  background: var(--cyan);
+}
+
+.ap-item.selected .ap-item-name,
+.ap-item.selected .ap-item-desc {
+  color: var(--bg);
 }
 
 .ap-item-name {
   color: var(--text);
-}
-
-.ap-item.selected .ap-item-name {
-  color: var(--cyan);
 }
 
 .ap-item-desc {
@@ -422,17 +430,18 @@ html, body {
 
 .btn-row {
   display: flex;
-  gap: 0;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
+  padding: 0;
+  gap: 0;
   border: 1px solid var(--border);
-  background: var(--bg-panel);
 }
 
 .btn-row button {
   flex: 1;
   background: transparent;
   border: none;
-  border-right: 1px solid var(--border);
   color: var(--text-dim);
   font-family: var(--font);
   font-size: 13px;
@@ -440,32 +449,43 @@ html, body {
   padding: 0.25em 1ch;
   cursor: pointer;
   letter-spacing: 1px;
-  transition: all 0.15s;
+  transition: background 0.1s, color 0.1s;
+  text-align: center;
 }
 
-.btn-row button:last-child {
-  border-right: none;
+.btn-row button span {
+  padding: 1px 4px;
+  transition: background 0.1s, color 0.1s;
 }
 
 .btn-row button:hover {
-  background: var(--bg-hover);
   color: var(--text);
 }
 
-#pause-btn:hover {
-  color: var(--red);
+.btn-row .btn-sep {
+  color: var(--border);
+  pointer-events: none;
+  line-height: 1;
 }
 
-#resume-btn:hover {
-  color: var(--green);
+#pause-btn:hover span {
+  background: var(--red);
+  color: var(--bg);
 }
 
-#resume-btn.btn-highlight {
-  color: var(--green);
+#resume-btn:hover span {
+  background: var(--green);
+  color: var(--bg);
 }
 
-#reset-btn:hover {
-  color: var(--amber);
+#resume-btn.btn-highlight span {
+  background: var(--green);
+  color: var(--bg);
+}
+
+#reset-btn:hover span {
+  background: var(--amber);
+  color: var(--bg);
 }
 
 .btn-row button:active {
@@ -477,8 +497,9 @@ html, body {
   50% { border-color: transparent; }
 }
 
-#pause-btn.active-pulse {
-  color: var(--red);
+#pause-btn.active-pulse span {
+  background: var(--red);
+  color: var(--bg);
   animation: pulse-text 1.2s ease-in-out infinite;
 }
 
@@ -509,7 +530,7 @@ html, body {
 
 .dot-bright { color: var(--green); }
 .dot-mid    { color: var(--green-dim); }
-.dot-dim    { color: var(--border); }
+.dot-dim    { color: var(--text-dim); }
 
 /* ---- turns ---- */
 
@@ -554,15 +575,22 @@ html, body {
 .camera-offline.hidden { display: none; }
 
 .turn-card {
-  border-left: 2px solid var(--border);
   padding: 0.25em 1ch;
-  margin-bottom: 2px;
   cursor: pointer;
-  transition: border-color 0.15s, background 0.1s;
+  transition: background 0.1s;
+  position: relative;
+}
+
+.turn-card + .turn-card::before {
+  content: '────────────────────────────────────────────────────────────────────────────────';
+  display: block;
+  overflow: hidden;
+  color: var(--text-dim);
+  line-height: 1;
+  margin-bottom: 0.25em;
 }
 
 .turn-card:hover {
-  border-left-color: var(--green-dim);
   background: var(--bg-hover);
 }
 
@@ -625,12 +653,21 @@ html, body {
   justify-content: space-between;
   align-items: center;
   padding: 0.25em 1ch;
-  border-bottom: 1px solid var(--border);
 }
 
-.modal-content .panel-header::before,
 .modal-content .panel-header::after {
   content: none;
+}
+
+.modal-content .panel-header-separator {
+  overflow: hidden;
+  color: var(--text-dim);
+  line-height: 1;
+  padding: 0 1ch;
+}
+
+.modal-content .panel-header-separator::before {
+  content: '────────────────────────────────────────────────────────────────────────────────';
 }
 
 .close-btn {

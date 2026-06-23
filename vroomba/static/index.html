@@ -23,7 +23,7 @@
       <main id="main-col">
         <!-- Camera feed -->
         <div class="panel" id="camera-panel">
-          <div class="panel-header"><span class="panel-header-label">CAMERA</span></div>
+          <div class="panel-header"><span class="panel-header-label">Camera</span></div>
           <div class="camera-feed-wrap">
             <img id="camera-feed" src="" alt="camera feed" class="hidden">
             <div id="camera-offline" class="camera-offline">NO SIGNAL</div>
@@ -31,7 +31,7 @@
         </div>
 
         <div id="messages" class="panel">
-          <div class="panel-header"><span class="panel-header-label">COMMS</span></div>
+          <div class="panel-header"><span class="panel-header-label">Comms</span></div>
           <div id="message-list" class="scroll-area"></div>
         </div>
         <form id="input-form">
@@ -70,7 +70,7 @@
       <aside id="sidebar">
         <!-- Autopilot panel (persona + camera pickers) -->
         <div class="panel" id="autopilot-panel">
-          <div class="panel-header"><span class="panel-header-label">AUTOPILOT</span></div>
+          <div class="panel-header"><span class="panel-header-label">Autopilot</span></div>
           <div class="ap-panel-body">
             <!-- Persona row -->
             <div class="ap-row" id="persona-row">
@@ -96,14 +96,16 @@
 
         <!-- Pause / Resume / Reset -->
         <div class="btn-row">
-          <button id="pause-btn" title="Pause autopilot (Esc)">pause</button>
-          <button id="resume-btn" title="Resume autopilot (r)">resume</button>
-          <button id="reset-btn" title="Reset session">reset</button>
+          <button id="pause-btn" title="Pause autopilot (Esc)"><span>pause</span></button>
+          <span class="btn-sep">│</span>
+          <button id="resume-btn" title="Resume autopilot (r)"><span>resume</span></button>
+          <span class="btn-sep">│</span>
+          <button id="reset-btn" title="Reset session"><span>reset</span></button>
         </div>
 
         <!-- Turns panel -->
         <div class="panel" id="turns-panel">
-          <div class="panel-header"><span class="panel-header-label">TURNS</span></div>
+          <div class="panel-header"><span class="panel-header-label">Turns</span></div>
           <div id="turn-list" class="scroll-area"></div>
         </div>
       </aside>
@@ -113,7 +115,8 @@
   <!-- Debug modal -->
   <div id="debug-modal" class="modal hidden">
     <div class="modal-content">
-      <div class="panel-header"><span class="panel-header-label">DEBUG</span> <button id="debug-close" class="close-btn">✕</button></div>
+      <div class="panel-header"><span class="panel-header-label">Debug</span> <button id="debug-close" class="close-btn">✕</button></div>
+      <div class="panel-header-separator"></div>
       <pre id="debug-body" class="scroll-area"></pre>
     </div>
   </div>
