@@ -78,12 +78,12 @@ class PolyphemusAutopilot(Autopilot[VisionTurnResult]):
                 # Include the stored frame from this past turn
                 past_frame = frames[frame_idx] if frame_idx < len(frames) else None
                 if past_frame is not None:
-                    history.append({"role": "user", "content": [
+                    history.append({"role": "system", "content": [
                         {"type": "text", "text": f"Turn {m.turn}. Camera frame:"},
                         {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{past_frame}"}},
                     ]})
                 else:
-                    history.append({"role": "user", "content": f"Turn {m.turn}. [no camera frame available]"})
+                    history.append({"role": "system", "content": f"Turn {m.turn}. [no camera frame available]"})
                 history.append({"role": "assistant", "content": f"({m.time}) {m.to_plaintext()}"})
                 frame_idx += 1
 
@@ -104,5 +104,5 @@ class PolyphemusAutopilot(Autopilot[VisionTurnResult]):
         return [
             {"role": "system", "content": f"{_IDENTITY}\n\n{_STEP_INSTRUCTIONS}"},
             *history,
-            {"role": "user", "content": user_content},
+            {"role": "system", "content": user_content},
         ]
