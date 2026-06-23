@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     # Autopilot
     turn_timeout_seconds: float = 45.0
     turn_send_hz: int = 20
+    settle_seconds: float = 2
 
     # Server
     server_host: str = "127.0.0.1"

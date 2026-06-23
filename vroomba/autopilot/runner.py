@@ -138,6 +138,14 @@ class AutopilotRunner:
             log.info("Turn %d (elapsed %.1fs)", turn_num, elapsed)
             await self._emit("thinking", {})
 
+            # Sequential autopilots: wait for previous action to complete before observing
+            if self.autopilot.sequential and self._keepalive_task and not self._keepalive_task.done():
+                try:
+                    await self._keepalive_task
+                except asyncio.CancelledError:
+                    pass
+                # Car is now idle post-action; safe to observe
+
             # Grab camera frame (if available)
             frame_b64: str | None = None
             if self.camera is not None:
@@ -169,8 +177,9 @@ class AutopilotRunner:
             if self._keepalive_task and not self._keepalive_task.done():
                 self._keepalive_task.cancel()
             max_seconds = DURATION_SECONDS[result.duration]
+            settle = settings.settle_seconds if self.autopilot.sequential else 0.0
             self._keepalive_task = asyncio.create_task(
-                self._keepalive(result.control, max_seconds=max_seconds)
+                self._keepalive(result.control, max_seconds=max_seconds, settle_seconds=settle)
             )
 
             # Store structured autopilot message in session history
@@ -212,10 +221,16 @@ class AutopilotRunner:
                 await self._emit("status", {"mode": self.mode.value})
                 break
 
-    async def _keepalive(self, cmd: ControlCommand, max_seconds: float | None = None) -> None:
-        """Re-send control at SEND_HZ. After max_seconds, idle the car."""
+    async def _keepalive(self, cmd: ControlCommand, max_seconds: float | None = None, settle_seconds: float = 0.0) -> None:
+        """Re-send control at SEND_HZ. After max_seconds, idle the car.
+
+        For sequential autopilots that await this task, it idles for settle_seconds
+        (to let momentum dissipate) then returns.
+        For concurrent autopilots, it loops indefinitely (cancelled by _stop_loop).
+        """
         interval = 1.0 / settings.turn_send_hz
         elapsed = 0.0
+        sequential = self.autopilot is not None and self.autopilot.sequential
         try:
             while True:
                 await asyncio.sleep(interval)
@@ -224,7 +239,15 @@ class AutopilotRunner:
                     self.car.idle()
                     self.current_control = ControlCommand()
                     await self._emit("control", self.current_control.model_dump())
-                    # Keep the task alive (still re-send idle) so it can be cancelled normally
+                    if sequential:
+                        # Hold idle to let car settle before returning
+                        settle_elapsed = 0.0
+                        while settle_elapsed < settle_seconds:
+                            await asyncio.sleep(interval)
+                            self.car.idle()
+                            settle_elapsed += interval
+                        return  # let awaiter proceed
+                    # Non-sequential: keep the task alive re-sending idle
                     while True:
                         await asyncio.sleep(interval)
                         self.car.idle()

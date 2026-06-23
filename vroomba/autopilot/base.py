@@ -20,6 +20,11 @@ class Autopilot(ABC, Generic[TurnResultT]):
     @abstractmethod
     def description(self) -> str: ...
 
+    @property
+    def sequential(self) -> bool:
+        """If True, runner waits for action to complete before snapping next frame."""
+        return False
+
     @abstractmethod
     def system_prompt(self) -> str:
         """Return the LLM identity/world-model system prompt."""
