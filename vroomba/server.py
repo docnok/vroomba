@@ -6,7 +6,7 @@ import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -135,6 +135,31 @@ async def get_status():
 @app.get("/state")
 async def get_state():
     return {"state": runner.state.model_dump(mode="json")}
+
+
+# -- Speech (STT / TTS) -------------------------------------------------------
+
+@app.post("/stt")
+async def speech_to_text(request: Request):
+    from vroomba import speech
+
+    body = await request.body()
+    if not body:
+        return Response(status_code=400, content="No audio data")
+    loop = asyncio.get_running_loop()
+    text = await loop.run_in_executor(None, speech.transcribe, body)
+    return {"text": text}
+
+
+@app.get("/tts")
+async def text_to_speech(text: str):
+    from vroomba import speech
+
+    if not text:
+        return Response(status_code=400, content="No text provided")
+    loop = asyncio.get_running_loop()
+    wav_bytes = await loop.run_in_executor(None, speech.synthesize, text)
+    return Response(content=wav_bytes, media_type="audio/wav")
 
 
 class AutopilotRequest(BaseModel):

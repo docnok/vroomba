@@ -11,3 +11,6 @@ wheels/
 
 # RF archive (hardware research, not part of the project source)
 rf_archive/
+
+# Piper TTS voice models (downloaded on first run)
+.piper-voices/

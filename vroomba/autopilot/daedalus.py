@@ -59,7 +59,7 @@ criteria. Later turns: 1-3 sentence progress check. Always note what you've lear
 environment. If you can't do the task, set done=true and explain in msg.
 - control: throttle × steering for this turn (executes for 0.5s then stops).
 - msg: Give a status update when responding to user messages, if stuck, if you find something \
-interesting, or when done=true. Otherwise null.
+interesting, or when done=true. Otherwise null. Always respond in Spanish.
 - done: true when task complete or awaiting instructions. Set idle/idle control.
 
 PLANNING: Make a plan on your first turn with specific done-criteria. Each later turn, restate \

@@ -253,6 +253,14 @@ html, body {
   animation: pulse-border 0.8s infinite;
 }
 
+/* Mic processing (STT in progress) */
+.input-btn.stt-busy {
+  border-color: var(--yellow);
+  color: var(--yellow);
+  opacity: 0.6;
+  pointer-events: none;
+}
+
 .input-btn.hidden { display: none; }
 
 /* ---- footer status bar ---- */

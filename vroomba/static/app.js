@@ -77,65 +77,75 @@
     return ARROW_MAP[t + "/" + s] || "·";
   }
 
-  // ---- TTS ----
+  // ---- TTS (server-side via piper) ----
 
   let ttsEnabled = true;
+  let ttsAudio = null;
 
   function speakText(text) {
-    if (!ttsEnabled || !window.speechSynthesis) return;
-    window.speechSynthesis.cancel();
-    const utt = new SpeechSynthesisUtterance(text);
-    const voices = window.speechSynthesis.getVoices();
-    const preferred = voices.find(v =>
-      /samantha|zoe|neural|enhanced/i.test(v.name) && /en/i.test(v.lang)
-    ) || voices.find(v => /en/i.test(v.lang) && v.localService);
-    if (preferred) utt.voice = preferred;
-    utt.rate = 1.05;
-    utt.onerror = (e) => console.warn("TTS error:", e.error);
-    window.speechSynthesis.speak(utt);
-  }
-
-  if (window.speechSynthesis) {
-    window.speechSynthesis.onvoiceschanged = () => {};
-  } else {
-    ttsBtn.classList.add("hidden");
+    if (!ttsEnabled || !text) return;
+    // Stop any in-progress playback
+    if (ttsAudio) { ttsAudio.pause(); ttsAudio = null; }
+    const url = "/tts?text=" + encodeURIComponent(text);
+    ttsAudio = new Audio(url);
+    ttsAudio.onerror = (e) => console.warn("TTS playback error:", e);
+    ttsAudio.play().catch(e => console.warn("TTS play blocked:", e));
   }
 
   ttsBtn.addEventListener("click", () => {
     ttsEnabled = !ttsEnabled;
     ttsBtn.classList.toggle("tts-on", ttsEnabled);
-    if (!ttsEnabled) window.speechSynthesis && window.speechSynthesis.cancel();
+    if (!ttsEnabled && ttsAudio) { ttsAudio.pause(); ttsAudio = null; }
   });
 
-  // ---- STT ----
+  // ---- STT (server-side via faster-whisper) ----
 
-  let recognition = null;
+  let mediaRecorder = null;
+  let audioChunks = [];
 
-  (function initSTT() {
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) { micBtn.classList.add("hidden"); return; }
+  async function initSTT() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream, { mimeType: "audio/webm;codecs=opus" });
 
-    recognition = new SR();
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.lang = "en-US";
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunks.push(e.data);
+      };
 
-    recognition.onresult = (e) => {
-      inputBox.value = e.results[0][0].transcript;
-      micBtn.classList.remove("listening");
-      sendMessage();
-    };
-    recognition.onerror = () => micBtn.classList.remove("listening");
-    recognition.onend   = () => micBtn.classList.remove("listening");
-  })();
+      mediaRecorder.onstop = async () => {
+        micBtn.classList.remove("listening");
+        micBtn.classList.add("stt-busy");
+        const blob = new Blob(audioChunks, { type: "audio/webm" });
+        audioChunks = [];
+        try {
+          const res = await fetch("/stt", { method: "POST", body: blob });
+          const data = await res.json();
+          if (data.text) {
+            inputBox.value = data.text;
+            sendMessage();
+          }
+        } catch (e) {
+          console.error("STT request failed:", e);
+        } finally {
+          micBtn.classList.remove("stt-busy");
+        }
+      };
+    } catch (e) {
+      console.warn("Microphone not available:", e);
+      micBtn.classList.add("hidden");
+    }
+  }
+
+  initSTT();
 
   micBtn.addEventListener("click", () => {
-    if (!recognition) return;
-    if (micBtn.classList.contains("listening")) {
-      recognition.stop();
+    if (!mediaRecorder) return;
+    if (mediaRecorder.state === "recording") {
+      mediaRecorder.stop();
     } else {
+      audioChunks = [];
       micBtn.classList.add("listening");
-      recognition.start();
+      mediaRecorder.start();
     }
   });
 

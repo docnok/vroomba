@@ -33,6 +33,12 @@ class Settings(BaseSettings):
     turn_send_hz: int = 20
     settle_seconds: float = 2
 
+    # Speech
+    tts_voice: str = "es_ES-carlfm-x_low"
+    tts_speed: float = 1.0
+    stt_model: str = "base"
+    stt_language: str = "en"
+
     # Server
     server_host: str = "127.0.0.1"
     server_port: int = 8420
