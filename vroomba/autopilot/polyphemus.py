@@ -9,6 +9,7 @@ from vroomba.models import (
     VisionTurnResult,
 )
 from vroomba import llm
+from vroomba.speech import language_instruction
 
 _IDENTITY = """\
 You are Polyphemus, autopilot of a small RC car with a forward-facing camera.
@@ -102,7 +103,7 @@ class PolyphemusAutopilot(Autopilot[VisionTurnResult]):
             user_content = f"Turn {turn_num}. [no camera frame available] JSON:"
 
         return [
-            {"role": "system", "content": f"{_IDENTITY}\n\n{_STEP_INSTRUCTIONS}"},
+            {"role": "system", "content": f"{_IDENTITY}\n\n{_STEP_INSTRUCTIONS}{language_instruction()}"},
             *history,
             {"role": "system", "content": user_content},
         ]

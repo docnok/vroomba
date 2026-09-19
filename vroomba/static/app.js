@@ -29,6 +29,10 @@
   const cameraArrow    = document.getElementById("camera-arrow");
   const cameraValue    = document.getElementById("camera-value");
   const cameraList     = document.getElementById("camera-list");
+  const languageToggle = document.getElementById("language-toggle");
+  const languageArrow  = document.getElementById("language-arrow");
+  const languageValue  = document.getElementById("language-value");
+  const languageList   = document.getElementById("language-list");
 
   // Footer status bar refs
   const ftDotArduino   = document.getElementById("ft-dot-arduino");
@@ -43,6 +47,7 @@
   // ---- state ----
   let currentMode = "idle";  // idle | auto | manual
   let pilotName = "VROOMBA";
+  const LANGUAGE_LABELS = { en: "English", es: "Spanish" };
   let ws = null;
   let wsReconnectTimer = null;
   let spinnerFrame = 0;
@@ -159,6 +164,7 @@
       console.log("WS connected");
       fetchStatus();
       loadAutopilots();
+      loadLanguages();
     };
 
     ws.onmessage = (ev) => {
@@ -187,6 +193,11 @@
         break;
       case "status":
         updateMode(data.mode);
+        if (data.output_language) {
+          currentLanguage = data.output_language;
+          updateLanguageValue();
+          refreshLanguageHighlight();
+        }
         if (data.autopilot) {
           pilotName = data.autopilot.toUpperCase();
           personaValue.textContent = data.autopilot;
@@ -300,6 +311,11 @@
         pilotName = s.autopilot_name.toUpperCase();
         currentPersona = s.autopilot_name;
         refreshPersonaHighlight();
+      }
+      if (s.output_language) {
+        currentLanguage = s.output_language;
+        updateLanguageValue();
+        refreshLanguageHighlight();
       }
       updateControl(s.current_control);
     } catch (e) {
@@ -422,11 +438,13 @@
 
   // ---- generic expand/collapse helper ----
 
-  function toggleExpand(arrow, listEl, otherArrow, otherList) {
+  function toggleExpand(arrow, listEl, ...others) {
     const opening = listEl.classList.contains("hidden");
     // collapse the other one first
-    otherList.classList.add("hidden");
-    otherArrow.classList.remove("open");
+    for (const [otherArrow, otherList] of others) {
+      otherList.classList.add("hidden");
+      otherArrow.classList.remove("open");
+    }
     // toggle this one
     listEl.classList.toggle("hidden", !opening);
     arrow.classList.toggle("open", opening);
@@ -484,7 +502,7 @@
 
   personaToggle.addEventListener("click", (e) => {
     e.stopPropagation();
-    toggleExpand(personaArrow, personaList, cameraArrow, cameraList);
+    toggleExpand(personaArrow, personaList, [cameraArrow, cameraList], [languageArrow, languageList]);
   });
 
   // ---- camera picker ----
@@ -550,9 +568,67 @@
 
   cameraToggle.addEventListener("click", (e) => {
     e.stopPropagation();
-    toggleExpand(cameraArrow, cameraList, personaArrow, personaList);
+    toggleExpand(cameraArrow, cameraList, [personaArrow, personaList], [languageArrow, languageList]);
     // lazy-load device list on first open
     if (!cameraList.hasChildNodes()) loadCameraDevices();
+  });
+
+  // ---- language picker ----
+
+  let currentLanguage = null;
+
+  function updateLanguageValue() {
+    const selected = languageList.querySelector(`[data-language="${currentLanguage}"]`);
+    languageValue.textContent = selected
+      ? selected.querySelector(".ap-item-name").textContent
+      : (LANGUAGE_LABELS[currentLanguage] || currentLanguage || "—");
+  }
+
+  function refreshLanguageHighlight() {
+    languageList.querySelectorAll(".ap-item").forEach(el => {
+      el.classList.toggle("selected", el.dataset.language === currentLanguage);
+    });
+    updateLanguageValue();
+  }
+
+  async function loadLanguages() {
+    try {
+      const res = await fetch("/languages");
+      const data = await res.json();
+      currentLanguage = data.current;
+      languageList.innerHTML = "";
+      for (const language of data.languages) {
+        const item = document.createElement("div");
+        item.className = "ap-item" + (language.code === currentLanguage ? " selected" : "");
+        item.dataset.language = language.code;
+        item.innerHTML =
+          `<div class="ap-item-name">${escapeHtml(language.name)}</div>` +
+          `<div class="ap-item-desc">${escapeHtml(language.voice)}</div>`;
+        item.addEventListener("click", async () => {
+          const response = await fetch("/language", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ language: language.code }),
+          });
+          if (!response.ok) return;
+          currentLanguage = language.code;
+          refreshLanguageHighlight();
+          languageList.classList.add("hidden");
+          languageArrow.classList.remove("open");
+        });
+        languageList.appendChild(item);
+      }
+      refreshLanguageHighlight();
+    } catch (e) {
+      console.error("Failed to load languages", e);
+      languageValue.textContent = LANGUAGE_LABELS[currentLanguage] || currentLanguage || "unavailable";
+    }
+  }
+
+  languageToggle.addEventListener("click", (e) => {
+    e.stopPropagation();
+    toggleExpand(languageArrow, languageList, [personaArrow, personaList], [cameraArrow, cameraList]);
+    if (!languageList.hasChildNodes()) loadLanguages();
   });
 
   // collapse both on outside click
@@ -561,6 +637,8 @@
     personaArrow.classList.remove("open");
     cameraList.classList.add("hidden");
     cameraArrow.classList.remove("open");
+    languageList.classList.add("hidden");
+    languageArrow.classList.remove("open");
   });
 
   // ---- pause / reset buttons ----

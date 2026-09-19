@@ -14,12 +14,33 @@ log = logging.getLogger(__name__)
 
 PIPER_DATA_DIR = Path(__file__).parent.parent / ".piper-voices"
 
+VOICE_MAP: dict[str, str] = {
+    "en": "en_US-danny-low",
+    "es": "es_ES-carlfm-x_low",
+}
+
+LANGUAGE_NAMES: dict[str, str] = {
+    "en": "English",
+    "es": "Spanish",
+}
+
+
+def language_instruction() -> str:
+    """Return an LLM prompt fragment for the configured output language."""
+    from vroomba.config import settings
+
+    name = LANGUAGE_NAMES.get(settings.output_language, settings.output_language)
+    if settings.output_language == "en":
+        return ""
+    return f" Always respond in {name}."
+
 # ---------------------------------------------------------------------------
 # Lazy singletons — loaded on first use
 # ---------------------------------------------------------------------------
 
 _whisper_model = None
 _piper_voice = None
+_piper_voice_name = None
 
 
 def _get_whisper():
@@ -35,17 +56,19 @@ def _get_whisper():
 
 
 def _get_piper():
-    global _piper_voice
-    if _piper_voice is None:
-        from piper import PiperVoice
-        from vroomba.config import settings
+    global _piper_voice, _piper_voice_name
+    from vroomba.config import settings
 
-        voice_name = settings.tts_voice
+    voice_name = VOICE_MAP.get(settings.output_language, VOICE_MAP["en"])
+    if _piper_voice is None or _piper_voice_name != voice_name:
+        from piper import PiperVoice
+
         model_path = PIPER_DATA_DIR / f"{voice_name}.onnx"
         if not model_path.exists():
             _download_piper_voice(voice_name)
         log.info("Loading piper voice %s …", voice_name)
         _piper_voice = PiperVoice.load(str(model_path))
+        _piper_voice_name = voice_name
         log.info("piper TTS ready")
     return _piper_voice
 

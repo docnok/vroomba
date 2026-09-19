@@ -85,6 +85,10 @@ class MessageRequest(BaseModel):
     text: str
 
 
+class LanguageRequest(BaseModel):
+    language: str
+
+
 # -- REST endpoints -----------------------------------------------------------
 
 @app.post("/message")
@@ -128,6 +132,8 @@ async def get_status():
         "camera_source_id": camera.source_id,
         "mode": runner.mode.value,
         "autopilot_name": runner.autopilot.name if runner.autopilot else None,
+        "output_language": settings.output_language,
+        "stt_language": settings.stt_language,
         "current_control": runner.current_control.model_dump(),
     }
 
@@ -182,6 +188,50 @@ async def list_autopilots():
         {"name": cls().name, "description": cls().description}
         for cls in AUTOPILOTS.values()
     ]
+
+
+@app.get("/languages")
+async def list_languages():
+    from vroomba.speech import LANGUAGE_NAMES, VOICE_MAP
+
+    return {
+        "current": settings.output_language,
+        "languages": [
+            {"code": code, "name": LANGUAGE_NAMES.get(code, code), "voice": voice}
+            for code, voice in VOICE_MAP.items()
+        ],
+    }
+
+
+@app.post("/language")
+async def set_language(req: LanguageRequest):
+    from fastapi import HTTPException
+    from vroomba.speech import LANGUAGE_NAMES, VOICE_MAP
+
+    language = req.language.lower()
+    if language not in VOICE_MAP:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported language: {req.language!r}. Available: {list(VOICE_MAP)}",
+        )
+
+    # Keep speech input and output aligned when changed from the UI. The
+    # environment settings remain independently configurable for advanced use.
+    settings.output_language = language
+    settings.stt_language = language
+    await broadcast(
+        "status",
+        {
+            "mode": runner.mode.value,
+            "output_language": language,
+            "stt_language": language,
+        },
+    )
+    return {
+        "status": "ok",
+        "language": language,
+        "name": LANGUAGE_NAMES.get(language, language),
+    }
 
 
 # -- WebSocket ----------------------------------------------------------------

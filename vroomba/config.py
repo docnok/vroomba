@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     settle_seconds: float = 2
 
     # Speech
-    tts_voice: str = "es_ES-carlfm-x_low"
+    output_language: str = "en"
     tts_speed: float = 1.0
     stt_model: str = "base"
     stt_language: str = "en"
