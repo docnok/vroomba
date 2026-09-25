@@ -14,8 +14,45 @@ log = logging.getLogger(__name__)
 
 ResultT = TypeVar("ResultT", bound=TurnResult)
 
+MODEL_OPTIONS = [
+    {
+        "provider": "ollama",
+        "model": "gemma4:26b",
+        "name": "gemma4:26b",
+        "description": "Ollama · local",
+    },
+    {
+        "provider": "thinktank",
+        "model": "gpt-5.6-luna",
+        "name": "gpt-5.6-luna",
+        "description": "ThinkTank · minimal reasoning",
+    },
+    {
+        "provider": "thinktank",
+        "model": "gpt-5.6-sol",
+        "name": "gpt-5.6-sol",
+        "description": "ThinkTank · minimal reasoning",
+    },
+    {
+        "provider": "thinktank",
+        "model": "gpt-5.6-terra",
+        "name": "gpt-5.6-terra",
+        "description": "ThinkTank · minimal reasoning",
+    },
+]
+
 
 def _build_client() -> AsyncOpenAI:
+    if settings.llm_provider == "thinktank":
+        return AsyncOpenAI(
+            base_url=settings.thinktank_base_url,
+            api_key=settings.thinktank_bearer_token or "thinktank-not-configured",
+            default_headers={
+                "Authorization": f"Bearer {settings.thinktank_bearer_token}",
+                "Content-Type": "application/json",
+                "X-TGT-APPLICATION": settings.thinktank_application,
+            },
+        )
     return AsyncOpenAI(
         base_url=settings.llm_base_url,
         api_key=settings.llm_api_key,
@@ -30,6 +67,18 @@ def get_client() -> AsyncOpenAI:
     if _client is None:
         _client = _build_client()
     return _client
+
+
+def reset_client() -> None:
+    """Force the next request to use the current provider configuration."""
+    global _client
+    _client = None
+
+
+def _token_limit() -> dict[str, int]:
+    """Return the completion-token parameter accepted by the active provider."""
+    parameter = "max_completion_tokens" if settings.llm_provider == "thinktank" else "max_tokens"
+    return {parameter: settings.llm_max_tokens}
 
 
 async def is_available() -> bool:
@@ -68,12 +117,15 @@ async def complete_ollama(messages: list[dict], result_model: type[ResultT] = Tu
 async def complete(messages: list[dict], result_model: type[ResultT] = TurnResult) -> ResultT:
     """Send chat completion, parse structured TurnResult JSON."""
     client = get_client()
+    extra_body = {"reasoning_effort": settings.llm_reasoning_effort}
+    if settings.llm_provider == "ollama":
+        extra_body["num_image_tokens"] = settings.llm_image_tokens
     response = await client.chat.completions.create(
         model=settings.llm_model,
         messages=messages,
         response_format={"type": "json_schema", "json_schema": {"name": result_model.__name__, "schema": result_model.model_json_schema()}},
-        extra_body={"reasoning_effort": "none", "num_image_tokens": settings.llm_image_tokens},
-        max_tokens=settings.llm_max_tokens,
+        extra_body=extra_body,
+        **_token_limit(),
     )
     raw = response.choices[0].message.content or ""
     data = json.loads(raw)
@@ -86,8 +138,8 @@ async def chat(messages: list[dict]) -> str:
     response = await client.chat.completions.create(
         model=settings.llm_model,
         messages=messages,
-        extra_body={"reasoning_effort": "none"},
-        max_tokens=settings.llm_max_tokens,
+        extra_body={"reasoning_effort": settings.llm_reasoning_effort},
+        **_token_limit(),
     )
     return response.choices[0].message.content or ""
 

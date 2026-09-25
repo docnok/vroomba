@@ -89,6 +89,11 @@ class LanguageRequest(BaseModel):
     language: str
 
 
+class ModelRequest(BaseModel):
+    provider: str
+    model: str
+
+
 # -- REST endpoints -----------------------------------------------------------
 
 @app.post("/message")
@@ -132,6 +137,9 @@ async def get_status():
         "camera_source_id": camera.source_id,
         "mode": runner.mode.value,
         "autopilot_name": runner.autopilot.name if runner.autopilot else None,
+        "llm_provider": settings.llm_provider,
+        "llm_model": settings.llm_model,
+        "llm_reasoning_effort": settings.llm_reasoning_effort,
         "output_language": settings.output_language,
         "stt_language": settings.stt_language,
         "current_control": runner.current_control.model_dump(),
@@ -200,6 +208,52 @@ async def list_languages():
             {"code": code, "name": LANGUAGE_NAMES.get(code, code), "voice": voice}
             for code, voice in VOICE_MAP.items()
         ],
+    }
+
+
+@app.get("/models")
+async def list_models():
+    from vroomba.llm import MODEL_OPTIONS
+
+    return {
+        "current": {"provider": settings.llm_provider, "model": settings.llm_model},
+        "models": MODEL_OPTIONS,
+    }
+
+
+@app.post("/model")
+async def set_model(req: ModelRequest):
+    from fastapi import HTTPException
+    from vroomba import llm
+
+    selected = next(
+        (
+            option
+            for option in llm.MODEL_OPTIONS
+            if option["provider"] == req.provider and option["model"] == req.model
+        ),
+        None,
+    )
+    if selected is None:
+        raise HTTPException(status_code=400, detail="Unsupported LLM provider/model")
+
+    await runner.pause()
+    settings.llm_provider = selected["provider"]
+    settings.llm_model = selected["model"]
+    llm.reset_client()
+    await broadcast(
+        "status",
+        {
+            "mode": runner.mode.value,
+            "llm_provider": settings.llm_provider,
+            "llm_model": settings.llm_model,
+            "llm_reasoning_effort": settings.llm_reasoning_effort,
+        },
+    )
+    return {
+        "status": "ok",
+        "provider": settings.llm_provider,
+        "model": settings.llm_model,
     }
 
 

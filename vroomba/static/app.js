@@ -33,6 +33,10 @@
   const languageArrow  = document.getElementById("language-arrow");
   const languageValue  = document.getElementById("language-value");
   const languageList   = document.getElementById("language-list");
+  const modelToggle    = document.getElementById("model-toggle");
+  const modelArrow     = document.getElementById("model-arrow");
+  const modelValue     = document.getElementById("model-value");
+  const modelList      = document.getElementById("model-list");
 
   // Footer status bar refs
   const ftDotArduino   = document.getElementById("ft-dot-arduino");
@@ -48,6 +52,7 @@
   let currentMode = "idle";  // idle | auto | manual
   let pilotName = "VROOMBA";
   const LANGUAGE_LABELS = { en: "English", es: "Spanish" };
+  let currentModel = null;
   let ws = null;
   let wsReconnectTimer = null;
   let spinnerFrame = 0;
@@ -165,6 +170,7 @@
       fetchStatus();
       loadAutopilots();
       loadLanguages();
+      loadModels();
     };
 
     ws.onmessage = (ev) => {
@@ -193,6 +199,11 @@
         break;
       case "status":
         updateMode(data.mode);
+        if (data.llm_provider && data.llm_model) {
+          currentModel = { provider: data.llm_provider, model: data.llm_model };
+          updateModelValue();
+          refreshModelHighlight();
+        }
         if (data.output_language) {
           currentLanguage = data.output_language;
           updateLanguageValue();
@@ -316,6 +327,11 @@
         currentLanguage = s.output_language;
         updateLanguageValue();
         refreshLanguageHighlight();
+      }
+      if (s.llm_provider && s.llm_model) {
+        currentModel = { provider: s.llm_provider, model: s.llm_model };
+        updateModelValue();
+        refreshModelHighlight();
       }
       updateControl(s.current_control);
     } catch (e) {
@@ -502,7 +518,7 @@
 
   personaToggle.addEventListener("click", (e) => {
     e.stopPropagation();
-    toggleExpand(personaArrow, personaList, [cameraArrow, cameraList], [languageArrow, languageList]);
+    toggleExpand(personaArrow, personaList, [cameraArrow, cameraList], [languageArrow, languageList], [modelArrow, modelList]);
   });
 
   // ---- camera picker ----
@@ -568,7 +584,7 @@
 
   cameraToggle.addEventListener("click", (e) => {
     e.stopPropagation();
-    toggleExpand(cameraArrow, cameraList, [personaArrow, personaList], [languageArrow, languageList]);
+    toggleExpand(cameraArrow, cameraList, [personaArrow, personaList], [languageArrow, languageList], [modelArrow, modelList]);
     // lazy-load device list on first open
     if (!cameraList.hasChildNodes()) loadCameraDevices();
   });
@@ -627,8 +643,72 @@
 
   languageToggle.addEventListener("click", (e) => {
     e.stopPropagation();
-    toggleExpand(languageArrow, languageList, [personaArrow, personaList], [cameraArrow, cameraList]);
+    toggleExpand(languageArrow, languageList, [personaArrow, personaList], [cameraArrow, cameraList], [modelArrow, modelList]);
     if (!languageList.hasChildNodes()) loadLanguages();
+  });
+
+  // ---- model picker ----
+
+  function updateModelValue() {
+    const selected = modelList.querySelector(
+      `[data-provider="${currentModel?.provider}"][data-model="${currentModel?.model}"]`,
+    );
+    modelValue.textContent = selected
+      ? selected.querySelector(".ap-item-name").textContent
+      : (currentModel?.model || "—");
+  }
+
+  function refreshModelHighlight() {
+    modelList.querySelectorAll(".ap-item").forEach(el => {
+      el.classList.toggle(
+        "selected",
+        el.dataset.provider === currentModel?.provider && el.dataset.model === currentModel?.model,
+      );
+    });
+    updateModelValue();
+  }
+
+  async function loadModels() {
+    try {
+      const res = await fetch("/models");
+      const data = await res.json();
+      currentModel = data.current;
+      modelList.innerHTML = "";
+      for (const model of data.models) {
+        const item = document.createElement("div");
+        item.className = "ap-item" + (
+          model.provider === currentModel.provider && model.model === currentModel.model ? " selected" : ""
+        );
+        item.dataset.provider = model.provider;
+        item.dataset.model = model.model;
+        item.innerHTML =
+          `<div class="ap-item-name">${escapeHtml(model.name)}</div>` +
+          `<div class="ap-item-desc">${escapeHtml(model.description || model.provider)}</div>`;
+        item.addEventListener("click", async () => {
+          const response = await fetch("/model", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ provider: model.provider, model: model.model }),
+          });
+          if (!response.ok) return;
+          currentModel = { provider: model.provider, model: model.model };
+          refreshModelHighlight();
+          modelList.classList.add("hidden");
+          modelArrow.classList.remove("open");
+        });
+        modelList.appendChild(item);
+      }
+      refreshModelHighlight();
+    } catch (e) {
+      console.error("Failed to load models", e);
+      modelValue.textContent = currentModel?.model || "unavailable";
+    }
+  }
+
+  modelToggle.addEventListener("click", (e) => {
+    e.stopPropagation();
+    toggleExpand(modelArrow, modelList, [personaArrow, personaList], [cameraArrow, cameraList], [languageArrow, languageList]);
+    if (!modelList.hasChildNodes()) loadModels();
   });
 
   // collapse both on outside click
@@ -639,6 +719,8 @@
     cameraArrow.classList.remove("open");
     languageList.classList.add("hidden");
     languageArrow.classList.remove("open");
+    modelList.classList.add("hidden");
+    modelArrow.classList.remove("open");
   });
 
   // ---- pause / reset buttons ----

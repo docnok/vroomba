@@ -11,11 +11,16 @@ class Settings(BaseSettings):
     serial_baud: int = 115200
 
     # LLM
+    llm_provider: str = "ollama"
     llm_base_url: str = "http://localhost:11434/v1"
     llm_model: str = "gemma4:26b"
     llm_api_key: str = "ollama"
     llm_max_tokens: int = 256
     llm_image_tokens: int = 140
+    llm_reasoning_effort: str = "none"
+    thinktank_base_url: str = "https://api-internal.target.com/model_gateway/v1"
+    thinktank_application: str = "ttsandbox"
+    thinktank_bearer_token: str = ""
 
     # Camera
     camera_enabled: bool = True
